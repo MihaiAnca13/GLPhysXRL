@@ -2,16 +2,20 @@ cmake_minimum_required(VERSION 3.24)
 project(c_ml)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS "-Os")
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 
+find_package(Threads REQUIRED)
 find_package(Torch REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-add_executable(c_ml main.cpp)
-#add_executable(c_ml draw_stuff.cpp glad.c)
+#add_executable(c_ml main.cpp)
+add_executable(c_ml draw_stuff.cpp glad.c)
 #add_executable(c_ml trying_physics.cpp ${SOURCES})
 
 # Add third party directory
@@ -29,4 +33,5 @@ set(ALL_LIBS
 target_include_directories(c_ml PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-target_link_libraries(c_ml PUBLIC "${TORCH_LIBRARIES}" glfw OpenGL::GL ${CMAKE_DL_LIBS} ${ALL_LIBS})
+target_link_libraries(c_ml PRIVATE ${CMAKE_DL_LIBS} Threads::Threads ssl crypto)
+target_link_libraries(c_ml PUBLIC "${TORCH_LIBRARIES}" glfw OpenGL::GL ${ALL_LIBS})
