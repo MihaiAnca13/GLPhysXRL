@@ -5,12 +5,17 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "shaderClass.h"
+#include "Camera.h"
 
 using namespace std;
 using namespace physx;
 
 static PxDefaultAllocator mallocator;
 static PxDefaultErrorCallback merrorCallback;
+
+#define WIDTH 800
+#define HEIGHT 600
 
 void sphereGeneration(unsigned int[], float[], int, int, float, const float *);
 
@@ -33,9 +38,9 @@ int main() {
     const float ballRadius = 0.25f;
 
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
-    PxTransform tableTransform(PxVec3(0.0f, -1.0f, 0.0f), PxQuat(PxIdentity));
+    PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
     PxTransform ballTransform(PxVec3(0.0f, 1.0f, 0.0f), PxQuat(PxIdentity));
-    PxBoxGeometry tableGeometry(PxVec3(10.0f, 0.5f, 10.0f));
+    PxBoxGeometry tableGeometry(PxVec3(10.0f, 0.0001f, 10.0f));
     PxSphereGeometry ballGeometry(ballRadius);
     PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
@@ -47,7 +52,7 @@ int main() {
 
     // OpenGL rendering
     glfwInit();
-    GLFWwindow *window = glfwCreateWindow(800, 600, "PhysX Table Simulation", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "PhysX Table Simulation", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
@@ -55,52 +60,15 @@ int main() {
         return -1;
     }
 
-    const char *vertexShaderSource = "#version 330 core\n"
-                                     "layout (location = 0) in vec3 aPos;\n"
-                                     "layout (location = 1) in vec3 aColor;\n"
-                                     "out vec3 vertexColor;\n"
-                                     "uniform mat4 model;\n"
-                                     "uniform mat4 view;\n"
-                                     "uniform mat4 projection;\n"
-                                     "void main()\n"
-                                     "{\n"
-                                     "   gl_Position = projection * view * model * vec4(aPos, 1.0);\n"
-                                     "   vertexColor = aColor;\n"
-                                     "}\0";
-
-    const char *fragmentShaderSource = "#version 330 core\n"
-                                       "in vec3 vertexColor;\n"
-                                       "out vec4 FragColor;\n"
-                                       "void main()\n"
-                                       "{\n"
-                                       "   FragColor = vec4(vertexColor, 1.0f);\n"
-                                       "}\n\0";
-
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
-    // check for compilation errors
-
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-    // check for compilation errors
-
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // check for linking errors
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    // Generates Shader object using shaders default.vert and default.frag
+    Shader shaderProgram("default.vert", "default.frag");
 
     float tableVertices[] = {
-            // position                         // color
-            -10.0f, -0.5f, -10.0f, 0.5f, 0.5f, 0.5f,
-            10.0f, -0.5f, -10.0f, 0.5f, 0.5f, 0.5f,
-            10.0f, -0.5f, 10.0f, 0.5f, 0.5f, 0.5f,
-            -10.0f, -0.5f, 10.0f, 0.5f, 0.5f, 0.5f
+            // position                                            // color                      // normal
+            -10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            10.0f, ballRadius / 2.0f + 0.05f, 10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            -10.0f, ballRadius / 2.0f + 0.05f, 10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
     };
 
     unsigned int tableIndices[] = {
@@ -113,7 +81,7 @@ int main() {
     const float ballColors[3] = {0.8f, 0.64f, 0.0f};
 
     unsigned int ballIndices[numSlices * numStacks * 6];
-    float ballVertices[(numSlices + 1) * (numStacks + 1) * 6];
+    float ballVertices[(numSlices + 1) * (numStacks + 1) * 9];
 
     sphereGeneration(ballIndices, ballVertices, numSlices, numStacks, ballRadius, ballColors);
 
@@ -126,10 +94,12 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(tableVertices), tableVertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tableEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tableIndices), tableIndices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) nullptr);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     unsigned int ballVAO, ballVBO, ballEBO;
     glGenVertexArrays(1, &ballVAO);
@@ -141,13 +111,16 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ballEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ballIndices), ballIndices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) nullptr);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 3.0f, 5.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glEnable(GL_DEPTH_TEST);
+
+    Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
 
     while (!glfwWindowShouldClose(window)) {
         scene->simulate(1.0f / 60.0f);
@@ -157,16 +130,22 @@ int main() {
         PxQuat ballRotation = ball->getGlobalPose().q;
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
+        shaderProgram.Activate();
+
+        // Handles camera inputs
+        camera.Inputs(window);
+        // Updates and exports the camera matrix to the Vertex Shader
+        camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+
+        glm::mat4 model = glm::mat4(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
         // render table
         glBindVertexArray(tableVAO);
-        glm::mat4 model = glm::mat4(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+        // draw table
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
         // render ball
@@ -176,13 +155,15 @@ int main() {
         glm::mat4 ballRotationMatrix = glm::mat4_cast(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z));
         model = model * ballRotationMatrix;
         model = glm::scale(model, glm::vec3(0.25f, 0.25f, 0.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
         glDrawElements(GL_TRIANGLES, numSlices * numStacks * 6, GL_UNSIGNED_INT, nullptr);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+    shaderProgram.Delete();
+    glfwDestroyWindow(window);
     glfwTerminate();
 
     return 0;
@@ -193,17 +174,43 @@ void sphereGeneration(unsigned int indices[], float vertices[], int numSlices = 
     int vertexIndex = 0;
     int indexIndex = 0;
 
+    if (color == nullptr) {
+        printf("No color provided!");
+        throw(std::exception());
+    }
+
     for (int stack = 0; stack <= numStacks; ++stack) {
         float phi = stack * PxPi / numStacks;
+        float sinPhi = sin(phi);
+        float cosPhi = cos(phi);
         for (int slice = 0; slice <= numSlices; ++slice) {
             float theta = slice * 2 * PxPi / numSlices;
-            vertices[vertexIndex++] = radius * sin(phi) * cos(theta);
-            vertices[vertexIndex++] = radius * sin(phi) * sin(theta);
-            vertices[vertexIndex++] = radius * cos(phi);
+            float sinTheta = sin(theta);
+            float cosTheta = cos(theta);
+
+            // Calculate position and normal
+            vertices[vertexIndex++] = radius * sinPhi * cosTheta;
+            vertices[vertexIndex++] = radius * sinPhi * sinTheta;
+            vertices[vertexIndex++] = radius * cosPhi;
+
+            // Add color to vertices
             vertices[vertexIndex++] = color[0];
             vertices[vertexIndex++] = color[1];
             vertices[vertexIndex++] = color[2];
 
+            // Calculate normal
+            float x = sinPhi * cosTheta;
+            float y = sinPhi * sinTheta;
+            float z = cosPhi;
+            glm::vec3 normal(x, y, z);
+            normal = glm::normalize(normal);
+
+            // Add normal to vertices
+            vertices[vertexIndex++] = normal.x;
+            vertices[vertexIndex++] = normal.y;
+            vertices[vertexIndex++] = normal.z;
+
+            // Add indices
             if (stack != numStacks && slice != numSlices) {
                 int nextStack = stack + 1;
                 int nextSlice = slice + 1;

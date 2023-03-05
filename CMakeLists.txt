@@ -14,7 +14,7 @@ find_package(OpenGL REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-add_executable(c_ml main.cpp glad.c ${SOURCES})
+add_executable(c_ml main.cpp glad.c Camera.cpp shaderClass.cpp ${SOURCES})
 
 # Add third party directory
 add_subdirectory(libs)
@@ -23,6 +23,9 @@ add_subdirectory(libs)
 include_directories(
         ./include
 )
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.frag ${CMAKE_CURRENT_BINARY_DIR}/default.frag COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.vert ${CMAKE_CURRENT_BINARY_DIR}/default.vert COPYONLY)
 
 set(ALL_LIBS
         third_party
