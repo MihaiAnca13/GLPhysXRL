@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "shaderClass.h"
 #include "Camera.h"
+#include "MyObjects.h"
 
 using namespace std;
 using namespace physx;
@@ -85,21 +86,7 @@ int main() {
 
     sphereGeneration(ballIndices, ballVertices, numSlices, numStacks, ballRadius, ballColors);
 
-    unsigned int tableVAO, tableVBO, tableEBO;
-    glGenVertexArrays(1, &tableVAO);
-    glGenBuffers(1, &tableVBO);
-    glGenBuffers(1, &tableEBO);
-    glBindVertexArray(tableVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, tableVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(tableVertices), tableVertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tableEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tableIndices), tableIndices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) nullptr);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    auto tableObject = MyObjects(tableVertices, tableIndices, sizeof(tableIndices) / sizeof(unsigned int));
 
     unsigned int ballVAO, ballVBO, ballEBO;
     glGenVertexArrays(1, &ballVAO);
@@ -110,7 +97,6 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(ballVertices), ballVertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ballEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ballIndices), ballIndices, GL_STATIC_DRAW);
-
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) nullptr);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (3 * sizeof(float)));
@@ -138,15 +124,12 @@ int main() {
         camera.Inputs(window);
         // Updates and exports the camera matrix to the Vertex Shader
         camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
-
-        glm::mat4 model = glm::mat4(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 
         // render table
-        glBindVertexArray(tableVAO);
+        tableObject.Draw(shaderProgram.ID);
 
-        // draw table
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        glm::mat4 model = glm::mat4(1.0f);
 
         // render ball
         glBindVertexArray(ballVAO);
@@ -162,6 +145,7 @@ int main() {
         glfwPollEvents();
     }
 
+    tableObject.Delete();
     shaderProgram.Delete();
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -176,7 +160,7 @@ void sphereGeneration(unsigned int indices[], float vertices[], int numSlices = 
 
     if (color == nullptr) {
         printf("No color provided!");
-        throw(std::exception());
+        throw (std::exception());
     }
 
     for (int stack = 0; stack <= numStacks; ++stack) {

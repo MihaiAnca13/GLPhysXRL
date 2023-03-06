@@ -2,14 +2,18 @@
 
 in vec3 vertexColor;
 in vec3 Normal;
+in vec3 crntPos;
 
 out vec4 FragColor;
 
+uniform vec3 camPos;
+
 // constants
-vec3 lightDirection = normalize(vec3(1.0f, 1.0f, 0.0f));
-vec4 lightColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+const vec3 lightDirection = normalize(vec3(1.0f, 1.0f, 0.0f));
+const vec4 lightColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 // ambient lighting
-float ambient = 0.20f;
+const float ambient = 0.20f;
+const float specularLight = 0.30f;
 
 vec4 direcLight()
 {
@@ -19,7 +23,14 @@ vec4 direcLight()
 
     vec4 color = vec4(vertexColor.x, vertexColor.y, vertexColor.z, 1.0f);
 
-    return (color * (diffuse + ambient)) * lightColor;
+    // specular lighting
+    vec3 viewDirection = normalize(camPos - crntPos);
+    vec3 reflectionDirection = reflect(-lightDirection, normal);
+    float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
+    float specular = specAmount * specularLight;
+
+
+    return (color * (diffuse + ambient + specular)) * lightColor;
 }
 
 void main()

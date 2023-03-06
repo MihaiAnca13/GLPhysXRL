@@ -6,13 +6,15 @@ layout (location = 2) in vec3 aNormal;
 
 out vec3 vertexColor;
 out vec3 Normal;
+out vec3 crntPos;
 
 uniform mat4 camMatrix;
 uniform mat4 model;
 
 void main()
 {
-    gl_Position = camMatrix * model * vec4(aPos, 1.0);
+    crntPos = vec3(model * vec4(aPos, 1.0));
+    gl_Position = camMatrix * vec4(crntPos, 1.0);
 
     vec4 normal = model * vec4(aNormal, 0.0);
     Normal = normalize(normal.xyz);
