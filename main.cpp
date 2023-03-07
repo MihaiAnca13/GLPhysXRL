@@ -9,6 +9,7 @@
 #include "shaderClass.h"
 #include "Camera.h"
 #include "MyObjects.h"
+#include "Sphere.h"
 
 using namespace std;
 using namespace physx;
@@ -18,8 +19,6 @@ static PxDefaultErrorCallback merrorCallback;
 
 #define WIDTH 800
 #define HEIGHT 600
-
-void sphereGeneration(unsigned int[], float[], int, int, float, const float *);
 
 
 int main() {
@@ -78,32 +77,10 @@ int main() {
             0, 2, 3
     };
 
-    const int numSlices = 30;
-    const int numStacks = 30;
-    const float ballColors[3] = {0.8f, 0.64f, 0.0f};
-
-    unsigned int ballIndices[numSlices * numStacks * 6];
-    float ballVertices[(numSlices + 1) * (numStacks + 1) * 9];
-
-    sphereGeneration(ballIndices, ballVertices, numSlices, numStacks, ballRadius, ballColors);
+    float ballColors[3] = {0.8f, 0.64f, 0.0f};
 
     auto tableObject = MyObjects(tableVertices, tableIndices);
-
-    unsigned int ballVAO, ballVBO, ballEBO;
-    glGenVertexArrays(1, &ballVAO);
-    glGenBuffers(1, &ballVBO);
-    glGenBuffers(1, &ballEBO);
-    glBindVertexArray(ballVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, ballVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(ballVertices), ballVertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ballEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ballIndices), ballIndices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) nullptr);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *) (6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    auto ballObject = Sphere(30, 30, ballRadius, ballColors);
 
     glEnable(GL_DEPTH_TEST);
 
@@ -130,82 +107,18 @@ int main() {
         // render table
         tableObject.Draw(shaderProgram.ID);
 
-        glm::mat4 model = glm::mat4(1.0f);
-
         // render ball
-        glBindVertexArray(ballVAO);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z));
-        glm::mat4 ballRotationMatrix = glm::mat4_cast(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z));
-        model = model * ballRotationMatrix;
-        model = glm::scale(model, glm::vec3(0.25f, 0.25f, 0.25f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glDrawElements(GL_TRIANGLES, numSlices * numStacks * 6, GL_UNSIGNED_INT, nullptr);
+        ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
     tableObject.Delete();
+    ballObject.Delete();
     shaderProgram.Delete();
     glfwDestroyWindow(window);
     glfwTerminate();
 
     return 0;
-}
-
-
-void sphereGeneration(unsigned int indices[], float vertices[], int numSlices = 30, int numStacks = 30, float radius = 1.0f, const float *color = nullptr) {
-    int vertexIndex = 0;
-    int indexIndex = 0;
-
-    if (color == nullptr) {
-        printf("No color provided!");
-        throw (std::exception());
-    }
-
-    for (int stack = 0; stack <= numStacks; ++stack) {
-        float phi = stack * PxPi / numStacks;
-        float sinPhi = sin(phi);
-        float cosPhi = cos(phi);
-        for (int slice = 0; slice <= numSlices; ++slice) {
-            float theta = slice * 2 * PxPi / numSlices;
-            float sinTheta = sin(theta);
-            float cosTheta = cos(theta);
-
-            // Calculate position and normal
-            vertices[vertexIndex++] = radius * sinPhi * cosTheta;
-            vertices[vertexIndex++] = radius * sinPhi * sinTheta;
-            vertices[vertexIndex++] = radius * cosPhi;
-
-            // Add color to vertices
-            vertices[vertexIndex++] = color[0];
-            vertices[vertexIndex++] = color[1];
-            vertices[vertexIndex++] = color[2];
-
-            // Calculate normal
-            float x = sinPhi * cosTheta;
-            float y = sinPhi * sinTheta;
-            float z = cosPhi;
-            glm::vec3 normal(x, y, z);
-            normal = glm::normalize(normal);
-
-            // Add normal to vertices
-            vertices[vertexIndex++] = normal.x;
-            vertices[vertexIndex++] = normal.y;
-            vertices[vertexIndex++] = normal.z;
-
-            // Add indices
-            if (stack != numStacks && slice != numSlices) {
-                int nextStack = stack + 1;
-                int nextSlice = slice + 1;
-                indices[indexIndex++] = (stack * (numSlices + 1) + slice);
-                indices[indexIndex++] = (nextStack * (numSlices + 1) + slice);
-                indices[indexIndex++] = (nextStack * (numSlices + 1) + nextSlice);
-                indices[indexIndex++] = (stack * (numSlices + 1) + slice);
-                indices[indexIndex++] = (nextStack * (numSlices + 1) + nextSlice);
-                indices[indexIndex++] = (stack * (numSlices + 1) + nextSlice);
-            }
-        }
-    }
 }

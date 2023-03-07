@@ -16,15 +16,14 @@ public:
 
     MyObjects(std::vector<float> vertices, std::vector<unsigned int> indices);
 
-    void Draw(unsigned int shaderProgram) const;
+    virtual void Draw(unsigned int shaderProgram) const;
 
     void Delete();
 
-private:
-    unsigned int VAO{}, VBO{}, EBO{};
-    GLsizei _numIndices{};
-
 protected:
+    GLsizei _numIndices{};
+    unsigned int VAO{}, VBO{}, EBO{};
+
     void Initialise(std::vector<float> vertices, std::vector<unsigned int> indices);
 };
 
