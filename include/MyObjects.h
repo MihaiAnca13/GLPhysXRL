@@ -7,12 +7,14 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include<glad/glad.h>
-
+#include <glad/glad.h>
+#include <vector>
 
 class MyObjects {
 public:
-    MyObjects(float vertices[], unsigned int indices[], GLsizei numIndices);
+    MyObjects() = default;
+
+    MyObjects(std::vector<float> vertices, std::vector<unsigned int> indices);
 
     void Draw(unsigned int shaderProgram) const;
 
@@ -21,6 +23,9 @@ public:
 private:
     unsigned int VAO{}, VBO{}, EBO{};
     GLsizei _numIndices{};
+
+protected:
+    void Initialise(std::vector<float> vertices, std::vector<unsigned int> indices);
 };
 
 

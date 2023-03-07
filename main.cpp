@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <vector>
 #include "shaderClass.h"
 #include "Camera.h"
 #include "MyObjects.h"
@@ -64,7 +65,7 @@ int main() {
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("default.vert", "default.frag");
 
-    float tableVertices[] = {
+    std::vector<float> tableVertices = {
             // position                                            // color                      // normal
             -10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
             10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
@@ -72,7 +73,7 @@ int main() {
             -10.0f, ballRadius / 2.0f + 0.05f, 10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
     };
 
-    unsigned int tableIndices[] = {
+    std::vector<unsigned int> tableIndices = {
             0, 1, 2,
             0, 2, 3
     };
@@ -86,7 +87,7 @@ int main() {
 
     sphereGeneration(ballIndices, ballVertices, numSlices, numStacks, ballRadius, ballColors);
 
-    auto tableObject = MyObjects(tableVertices, tableIndices, sizeof(tableIndices) / sizeof(unsigned int));
+    auto tableObject = MyObjects(tableVertices, tableIndices);
 
     unsigned int ballVAO, ballVBO, ballEBO;
     glGenVertexArrays(1, &ballVAO);
