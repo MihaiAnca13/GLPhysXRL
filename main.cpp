@@ -19,7 +19,7 @@ static PxDefaultErrorCallback merrorCallback;
 
 #define WIDTH 800
 #define HEIGHT 600
-
+#define SAMPLES 8
 
 int main() {
 
@@ -53,6 +53,17 @@ int main() {
 
     // OpenGL rendering
     glfwInit();
+
+    // Tell GLFW what version of OpenGL we are using
+    // In this case we are using OpenGL 3.3
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    // Only use this if you don't have a framebuffer
+    glfwWindowHint(GLFW_SAMPLES, SAMPLES);
+    // Tell GLFW we are using the CORE profile
+    // So that means we only have the modern functions
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "PhysX Table Simulation", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
