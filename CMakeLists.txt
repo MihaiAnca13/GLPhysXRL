@@ -26,6 +26,8 @@ include_directories(
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.frag ${CMAKE_CURRENT_BINARY_DIR}/default.frag COPYONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.vert ${CMAKE_CURRENT_BINARY_DIR}/default.vert COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shadowMap.frag ${CMAKE_CURRENT_BINARY_DIR}/shadowMap.frag COPYONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shadowMap.vert ${CMAKE_CURRENT_BINARY_DIR}/shadowMap.vert COPYONLY)
 
 set(ALL_LIBS
         third_party

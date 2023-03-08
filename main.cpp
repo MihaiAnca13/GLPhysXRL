@@ -74,6 +74,7 @@ int main() {
 
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("default.vert", "default.frag");
+    Shader shadowMapProgram("shadowMap.vert", "shadowMap.frag");
 
     std::vector<float> tableVertices = {
             // position                                            // color                      // normal
@@ -93,9 +94,49 @@ int main() {
     auto tableObject = MyObjects(tableVertices, tableIndices);
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
 
+    // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
+    // Enables Multisampling
+    glEnable(GL_MULTISAMPLE);
 
     Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
+
+    // Framebuffer for Shadow Map
+    unsigned int shadowMapFBO;
+    glGenFramebuffers(1, &shadowMapFBO);
+
+    // Texture for Shadow Map FBO
+    unsigned int shadowMapWidth = 2048, shadowMapHeight = 2048;
+    unsigned int shadowMap;
+    glGenTextures(1, &shadowMap);
+    glBindTexture(GL_TEXTURE_2D, shadowMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    // Prevents darkness outside the frustrum
+    float clampColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, clampColor);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+    // Needed since we don't touch the color buffer
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Matrices needed for the light's perspective
+    glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 0.0f);
+//    glm::mat4 orthgonalProjection = glm::ortho(-35.0f, 35.0f, -35.0f, 35.0f, 0.1f, 75.0f);
+    glm::mat4 orthgonalProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 75.0f);
+    glm::mat4 lightView = glm::lookAt(20.0f * lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightProjection = orthgonalProjection * lightView;
+
+    shadowMapProgram.Activate();
+    glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
+    glm::mat4 model = glm::mat4(1.0f);
+    glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
     while (!glfwWindowShouldClose(window)) {
         scene->simulate(1.0f / 60.0f);
@@ -104,16 +145,44 @@ int main() {
         PxVec3 ballPosition = ball->getGlobalPose().p;
         PxQuat ballRotation = ball->getGlobalPose().q;
 
+        // Depth testing needed for Shadow Map
+        glEnable(GL_DEPTH_TEST);
+
+        // Preparations for the Shadow Map
+        shadowMapProgram.Activate();
+        glViewport(0, 0, shadowMapWidth, shadowMapHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glCullFace(GL_FRONT);
+
+        // render table
+        tableObject.Draw(shadowMapProgram.ID);
+
+        // render ball
+        ballObject.Draw(shadowMapProgram.ID, ballPosition, ballRotation);
+
+        glCullFace(GL_BACK);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Render the scene normally
+        shaderProgram.Activate();
+        glViewport(0, 0, WIDTH, HEIGHT);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shaderProgram.Activate();
+        glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightDirection"), lightPos.x, lightPos.y, lightPos.z);
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
 
         // Handles camera inputs
         camera.Inputs(window);
         // Updates and exports the camera matrix to the Vertex Shader
         camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
         glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+
+        // Bind the Shadow Map to the Texture Unit 0
+        glBindTexture(GL_TEXTURE_2D, shadowMap);
+        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shadowMap"), 0);
 
         // render table
         tableObject.Draw(shaderProgram.ID);
@@ -128,6 +197,7 @@ int main() {
     tableObject.Delete();
     ballObject.Delete();
     shaderProgram.Delete();
+    shadowMapProgram.Delete();
     glfwDestroyWindow(window);
     glfwTerminate();
 
