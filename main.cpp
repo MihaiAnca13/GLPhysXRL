@@ -8,7 +8,7 @@
 #include <vector>
 #include "shaderClass.h"
 #include "Camera.h"
-#include "MyObjects.h"
+#include "Table.h"
 #include "Sphere.h"
 
 using namespace std;
@@ -36,13 +36,14 @@ int main() {
 
     PxScene *scene = physics->createScene(sceneDesc);
 
-    const float ballRadius = 0.25f;
+    const float ballRadius = 1.0f;
+    const float tableSize = 30.0f;
 
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
     PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
     PxTransform ballTransform(PxVec3(0.0f, 1.0f, 0.0f), PxQuat(PxIdentity));
-    PxBoxGeometry tableGeometry(PxVec3(10.0f, 0.0001f, 10.0f));
-    PxSphereGeometry ballGeometry(ballRadius);
+    PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
+    PxSphereGeometry ballGeometry(ballRadius / 4);
     PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
     ball->setAngularDamping(0.5f);
@@ -76,22 +77,10 @@ int main() {
     Shader shaderProgram("default.vert", "default.frag");
     Shader shadowMapProgram("shadowMap.vert", "shadowMap.frag");
 
-    std::vector<float> tableVertices = {
-            // position                                            // color                      // normal
-            -10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-            10.0f, ballRadius / 2.0f + 0.05f, -10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-            10.0f, ballRadius / 2.0f + 0.05f, 10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-            -10.0f, ballRadius / 2.0f + 0.05f, 10.0f, 0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-    };
-
-    std::vector<unsigned int> tableIndices = {
-            0, 1, 2,
-            0, 2, 3
-    };
-
     float ballColors[3] = {0.2f, 0.5f, 0.8f};
+    float tableColors[3] = {0.5f, 0.5f, 0.5f};
 
-    auto tableObject = MyObjects(tableVertices, tableIndices);
+    auto tableObject = Table(tableSize, 0.0f, tableColors);
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
 
     // Enables Depth Testing
@@ -147,6 +136,8 @@ int main() {
         PxVec3 ballPosition = ball->getGlobalPose().p;
         PxQuat ballRotation = ball->getGlobalPose().q;
 
+        PxVec3 tablePosition = table->getGlobalPose().p;
+
         // Depth testing needed for Shadow Map
         glEnable(GL_DEPTH_TEST);
 
@@ -165,7 +156,7 @@ int main() {
         glCullFace(GL_FRONT);
 
         // render table
-        tableObject.Draw(shadowMapProgram.ID);
+        tableObject.Draw(shadowMapProgram.ID, tablePosition);
 
         // render ball
         ballObject.Draw(shadowMapProgram.ID, ballPosition, ballRotation);
@@ -193,7 +184,7 @@ int main() {
         glUniform1i(glGetUniformLocation(shaderProgram.ID, "shadowMap"), 0);
 
         // render table
-        tableObject.Draw(shaderProgram.ID);
+        tableObject.Draw(shaderProgram.ID, tablePosition);
 
         // render ball
         ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
