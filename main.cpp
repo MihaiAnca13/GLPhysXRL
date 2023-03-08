@@ -5,11 +5,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <vector>
 #include "shaderClass.h"
 #include "Camera.h"
 #include "Table.h"
 #include "Sphere.h"
+#include "Shadow.h"
 
 using namespace std;
 using namespace physx;
@@ -91,29 +91,7 @@ int main() {
     Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
 
     // Framebuffer for Shadow Map
-    unsigned int shadowMapFBO;
-    glGenFramebuffers(1, &shadowMapFBO);
-
-    // Texture for Shadow Map FBO
-    unsigned int shadowMapWidth = 2048, shadowMapHeight = 2048;
-    unsigned int shadowMap;
-    glGenTextures(1, &shadowMap);
-    glBindTexture(GL_TEXTURE_2D, shadowMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    // Prevents darkness outside the frustrum
-    float clampColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, clampColor);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
-    // Needed since we don't touch the color buffer
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    auto shadowObject = Shadow(2048, 2048);
 
     // Matrices needed for the light's perspective
     glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 0.0f);
@@ -149,8 +127,7 @@ int main() {
         lightProjection = orthgonalProjection * lightView;
         glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
 
-        glViewport(0, 0, shadowMapWidth, shadowMapHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+        shadowObject.bindFramebuffer();
         glClear(GL_DEPTH_BUFFER_BIT);
 
         glCullFace(GL_FRONT);
@@ -180,8 +157,7 @@ int main() {
         glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 
         // Bind the Shadow Map to the Texture Unit 0
-        glBindTexture(GL_TEXTURE_2D, shadowMap);
-        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shadowMap"), 0);
+        shadowObject.bindTexture(shaderProgram.ID, 0);
 
         // render table
         tableObject.Draw(shaderProgram.ID, tablePosition);
