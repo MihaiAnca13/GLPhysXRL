@@ -89,7 +89,7 @@ int main() {
             0, 2, 3
     };
 
-    float ballColors[3] = {0.8f, 0.64f, 0.0f};
+    float ballColors[3] = {0.2f, 0.5f, 0.8f};
 
     auto tableObject = MyObjects(tableVertices, tableIndices);
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
@@ -128,15 +128,17 @@ int main() {
 
     // Matrices needed for the light's perspective
     glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, 0.0f);
-//    glm::mat4 orthgonalProjection = glm::ortho(-35.0f, 35.0f, -35.0f, 35.0f, 0.1f, 75.0f);
-    glm::mat4 orthgonalProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 75.0f);
-    glm::mat4 lightView = glm::lookAt(20.0f * lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const float orthoDistance = 1.0f;
+    glm::mat4 orthgonalProjection = glm::ortho(-orthoDistance, orthoDistance, -orthoDistance, orthoDistance, 0.1f, 75.0f);
+    glm::mat4 lightView = glm::lookAt(10.0f * lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightProjection = orthgonalProjection * lightView;
 
     shadowMapProgram.Activate();
     glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
     glm::mat4 model = glm::mat4(1.0f);
     glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    glm::vec3 glmBallP;
 
     while (!glfwWindowShouldClose(window)) {
         scene->simulate(1.0f / 60.0f);
@@ -150,6 +152,12 @@ int main() {
 
         // Preparations for the Shadow Map
         shadowMapProgram.Activate();
+
+        glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
+        lightView = glm::lookAt(10.0f * lightPos, glmBallP, glm::vec3(0.0f, 1.0f, 0.0f));
+        lightProjection = orthgonalProjection * lightView;
+        glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
+
         glViewport(0, 0, shadowMapWidth, shadowMapHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
