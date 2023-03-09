@@ -11,6 +11,7 @@ out vec4 FragColor;
 uniform sampler2D shadowMap;
 uniform vec3 camPos;
 uniform vec3 lightDirection;
+uniform uint specMulti;
 
 // constants
 //const vec3 lightDirection = normalize(vec3(1.0f, 1.0f, 0.0f));
@@ -31,7 +32,7 @@ vec4 direcLight()
     // specular lighting
     vec3 viewDirection = normalize(camPos - crntPos);
     vec3 reflectionDirection = reflect(-direction, normal);
-    float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), 16);
+    float specAmount = pow(max(dot(viewDirection, reflectionDirection), 0.0f), specMulti);
     float specular = specAmount * specularLight;
 
     // Shadow value
