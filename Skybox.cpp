@@ -73,7 +73,7 @@ void Skybox::Draw(Camera camera, unsigned int width, unsigned int height) const 
     // Draws the cubemap as the last object so we can save a bit of performance by discarding all fragments
     // where an object is present (a depth of 1.0f will always fail against any object's depth value)
     glBindVertexArray(VAO);
-    glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE0 + 6);
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);

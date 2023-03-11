@@ -101,10 +101,11 @@ int main() {
     shaderProgram.Activate();
     glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, -0.8f);
     glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightDirection"), lightPos.x, lightPos.y, lightPos.z);
+    glUniform1i(glGetUniformLocation(shaderProgram.ID, "skybox"), 6);
 
     // cube map
     skyboxShader.Activate();
-    glUniform1i(glGetUniformLocation(skyboxShader.ID, "skybox"), 0);
+    glUniform1i(glGetUniformLocation(skyboxShader.ID, "skybox"), 6);
 
     // skybox
     auto skybox = Skybox(skyboxShader.ID);
@@ -175,10 +176,12 @@ int main() {
 
         // render table
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 8);
+        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shouldReflect"), 0);
         tableObject.Draw(shaderProgram.ID, tablePosition);
 
         // render ball
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
+        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shouldReflect"), 1);
         ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
 
         // Since the cubemap will always have a depth of 1.0, we need that equal sign so it doesn't get discarded

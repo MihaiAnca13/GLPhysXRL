@@ -48,16 +48,20 @@ void Sphere::sphereGeneration(std::vector<unsigned int> &indices, std::vector<fl
             vertices.push_back(radius * cosPhi);
 
             // Add color to vertices
-            if (slice == 0 || slice == numSlices / 2) {
-                vertices.push_back(0.0f);
-                vertices.push_back(0.0f);
-                vertices.push_back(0.0f);
-            }
-            else {
-                vertices.push_back(color[0]);
-                vertices.push_back(color[1]);
-                vertices.push_back(color[2]);
-            }
+            vertices.push_back(color[0]);
+            vertices.push_back(color[1]);
+            vertices.push_back(color[2]);
+
+//            if (slice == 0 || slice == numSlices / 2) {
+//                vertices.push_back(0.0f);
+//                vertices.push_back(0.0f);
+//                vertices.push_back(0.0f);
+//            }
+//            else {
+//                vertices.push_back(color[0]);
+//                vertices.push_back(color[1]);
+//                vertices.push_back(color[2]);
+//            }
 
             // Calculate normal
             float x = sinPhi * cosTheta;

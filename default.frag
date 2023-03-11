@@ -12,6 +12,8 @@ uniform sampler2D shadowMap;
 uniform vec3 camPos;
 uniform vec3 lightDirection;
 uniform uint specMulti;
+uniform samplerCube skybox;
+uniform bool shouldReflect;
 
 // constants
 //const vec3 lightDirection = normalize(vec3(1.0f, 1.0f, 0.0f));
@@ -64,7 +66,15 @@ vec4 direcLight()
 
     }
 
-    return (color * (diffuse * (1.0f - shadow) + ambient + specular)) * lightColor;
+    // reflection
+    vec4 reflectionColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    if (shouldReflect) {
+        vec3 I = normalize(crntPos - camPos);
+        vec3 R = reflect(I, normal);
+        reflectionColor = vec4(texture(skybox, R).rgb, 1.0f);
+    }
+
+    return (color * (diffuse * (1.0f - shadow) + ambient + specular)) * lightColor * reflectionColor;
 }
 
 void main()
