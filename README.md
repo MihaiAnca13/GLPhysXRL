@@ -13,9 +13,6 @@ Place libtorch and PhysX under the libs folder.
 Install OpenGL, GLAD and glfw3.
 
 ## TODO
-
-- reflection material on sphere
-- world bounds
 - camera on ball toggle
 - controls for ball
 - create scene in Blender

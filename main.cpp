@@ -21,6 +21,7 @@ static PxDefaultErrorCallback merrorCallback;
 #define WIDTH 800
 #define HEIGHT 600
 #define SAMPLES 8
+#define BOUNDS 100.0f
 
 
 int main() {
@@ -49,7 +50,8 @@ int main() {
     PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
     ball->setAngularDamping(0.5f);
-    ball->setLinearVelocity(PxVec3(0.2f, 0.0f, 0.0f));
+//    ball->setLinearVelocity(PxVec3(0.2f, 0.0f, 0.0f));
+    ball->setAngularVelocity(PxVec3(15.0f, 0.0f, 0.0f));
 
     scene->addActor(*table);
     scene->addActor(*ball);
@@ -142,6 +144,14 @@ int main() {
         shadowMapProgram.Activate();
 
         glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
+
+        // check if ball position is out of bounds
+        if (glmBallP.x > BOUNDS || glmBallP.x < -BOUNDS || glmBallP.y > BOUNDS || glmBallP.y < -BOUNDS || glmBallP.z > BOUNDS || glmBallP.z < -BOUNDS) {
+            glmBallP = glm::clamp(glmBallP, glm::vec3(-BOUNDS), glm::vec3(BOUNDS));
+
+            ball->setGlobalPose(PxTransform(glmBallP.x, glmBallP.y, glmBallP.z, ballRotation), true);
+        }
+
         lightView = glm::lookAt(10.0f * lightPos, glmBallP, glm::vec3(0.0f, 1.0f, 0.0f));
         lightProjection = orthgonalProjection * lightView;
         glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
