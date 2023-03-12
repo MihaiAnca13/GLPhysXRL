@@ -2,8 +2,8 @@
 // Created by mihai on 05/03/23.
 //
 
-#ifndef C_ML_CAMERA_H
-#define C_ML_CAMERA_H
+#ifndef C_ML_SPRING_ARM_CAMERA_H
+#define C_ML_SPRING_ARM_CAMERA_H
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -15,32 +15,28 @@
 #include "shaderClass.h"
 
 
-class Camera {
+class SpringArmCamera {
 public:
     // Stores the main vectors of the camera
-    glm::vec3 Position;
+    glm::vec3 Position{};
     glm::vec3 Orientation = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 Up = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    // Prevents the camera from jumping around when first clicking left click
-    bool firstClick = true;
 
     // Stores the width and height of the window
     int width;
     int height;
 
-    // Adjust the speed of the camera and it's sensitivity when looking around
-    float speed = 0.1f;
-    float sensitivity = 100.0f;
-
     // Camera constructor to set up initial values
-    Camera(int width, int height, glm::vec3 position);
+    SpringArmCamera(int width, int height, glm::vec3 position, glm::vec3 objectPos);
 
     // Updates and exports the camera matrix to the Vertex Shader
-    void Matrix(float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform) const;
+    void Matrix(glm::vec3 objectPos, glm::mat3 objectRot, float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform);
 
     // Handles camera inputs
-    void Inputs(GLFWwindow *window);
+    void Inputs(GLFWwindow *window){};
+
+private:
+    glm::vec3 _lastObjPos{};
 };
 
-#endif //C_ML_CAMERA_H
+#endif //C_ML_SPRING_ARM_CAMERA_H

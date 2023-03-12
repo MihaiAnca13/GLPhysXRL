@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "Camera.h"
+#include "SpringArmCamera.h"
 
 
 class Skybox {
@@ -20,6 +21,7 @@ public:
 
     explicit Skybox(unsigned int shaderID);
     void Draw(Camera camera, unsigned int width, unsigned int height) const;
+    void Draw(SpringArmCamera camera, unsigned int width, unsigned int height) const;
 
 private:
     // All the faces of the cubemap (make sure they are in this exact order)

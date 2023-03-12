@@ -6,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "shaderClass.h"
-#include "Camera.h"
+#include "SpringArmCamera.h"
 #include "Table.h"
 #include "Sphere.h"
 #include "Shadow.h"
@@ -42,16 +42,18 @@ int main() {
     const float ballRadius = 1.0f;
     const float tableSize = 30.0f;
 
+    glm::vec3 initialBallPos = glm::vec3(0.0f, 1.0f, 0.0f);
+
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
     PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
-    PxTransform ballTransform(PxVec3(0.0f, 1.0f, 0.0f), PxQuat(PxIdentity));
+    PxTransform ballTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity));
     PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
     PxSphereGeometry ballGeometry(ballRadius / 4);
     PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
     ball->setAngularDamping(0.5f);
 //    ball->setLinearVelocity(PxVec3(0.2f, 0.0f, 0.0f));
-    ball->setAngularVelocity(PxVec3(15.0f, 0.0f, 0.0f));
+    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 10.0f));
 
     scene->addActor(*table);
     scene->addActor(*ball);
@@ -98,7 +100,7 @@ int main() {
     // Uses counter clock-wise standard
     glFrontFace(GL_CCW);
 
-    Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
+    SpringArmCamera camera(WIDTH, HEIGHT, initialBallPos + glm::vec3(-3.0f, 2.0f, 0.0f), initialBallPos);
 
     shaderProgram.Activate();
     glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, -0.8f);
@@ -127,13 +129,16 @@ int main() {
     glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
     glm::vec3 glmBallP;
+    glm::mat3 glmBallR;
+    PxQuat ballRotation = ball->getGlobalPose().q;
+    float lastBallAngle = glm::eulerAngles(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z)).y;
 
     while (!glfwWindowShouldClose(window)) {
         scene->simulate(1.0f / 60.0f);
         scene->fetchResults(true);
 
         PxVec3 ballPosition = ball->getGlobalPose().p;
-        PxQuat ballRotation = ball->getGlobalPose().q;
+        ballRotation = ball->getGlobalPose().q;
 
         PxVec3 tablePosition = table->getGlobalPose().p;
 
@@ -144,6 +149,10 @@ int main() {
         shadowMapProgram.Activate();
 
         glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
+
+        float angle = glm::eulerAngles(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z)).y;
+        glmBallR = glm::mat3_cast(glm::angleAxis(lastBallAngle - angle, glm::vec3(0, 1, 0)));
+        lastBallAngle = angle;
 
         // check if ball position is out of bounds
         if (glmBallP.x > BOUNDS || glmBallP.x < -BOUNDS || glmBallP.y > BOUNDS || glmBallP.y < -BOUNDS || glmBallP.z > BOUNDS || glmBallP.z < -BOUNDS) {
@@ -178,7 +187,7 @@ int main() {
         // Handles camera inputs
         camera.Inputs(window);
         // Updates and exports the camera matrix to the Vertex Shader
-        camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+        camera.Matrix(glmBallP, glmBallR, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
         glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 
         // Bind the Shadow Map to the Texture Unit 0
@@ -186,12 +195,10 @@ int main() {
 
         // render table
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 8);
-        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shouldReflect"), 0);
         tableObject.Draw(shaderProgram.ID, tablePosition);
 
         // render ball
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
-        glUniform1i(glGetUniformLocation(shaderProgram.ID, "shouldReflect"), 1);
         ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
 
         // Since the cubemap will always have a depth of 1.0, we need that equal sign so it doesn't get discarded

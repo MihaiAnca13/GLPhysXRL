@@ -32,11 +32,11 @@ void Table::tableGeneration(std::vector<unsigned int> &indices, std::vector<floa
     }
 
     vertices = {
-            // position             // color                        // normal
-            -size / 2, thickness, -size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f,
-            size / 2, thickness, -size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f,
-            size / 2, thickness, size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f,
-            -size / 2, thickness, size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f,
+            // position             // color                        // normal               // reflectivity
+            -size / 2, thickness, -size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f, 0.0f,
+            size / 2, thickness, -size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f, 0.0f,
+            size / 2, thickness, size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f, 0.0f,
+            -size / 2, thickness, size / 2, color[0], color[1], color[2], 0.0f, 1.0f, 0.0f, 0.0f,
     };
 
     indices = {

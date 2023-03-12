@@ -3,6 +3,7 @@
 in vec3 vertexColor;
 in vec3 Normal;
 in vec3 crntPos;
+in float shouldReflect;
 // Imports the fragment position of the light
 in vec4 fragPosLight;
 
@@ -13,7 +14,6 @@ uniform vec3 camPos;
 uniform vec3 lightDirection;
 uniform uint specMulti;
 uniform samplerCube skybox;
-uniform bool shouldReflect;
 
 // constants
 //const vec3 lightDirection = normalize(vec3(1.0f, 1.0f, 0.0f));
@@ -68,7 +68,7 @@ vec4 direcLight()
 
     // reflection
     vec4 reflectionColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    if (shouldReflect) {
+    if (shouldReflect > 0.0f) {
         vec3 I = normalize(crntPos - camPos);
         vec3 R = reflect(I, normal);
         reflectionColor = vec4(texture(skybox, R).rgb, 1.0f);

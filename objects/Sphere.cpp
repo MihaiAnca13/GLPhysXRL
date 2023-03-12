@@ -33,6 +33,8 @@ void Sphere::sphereGeneration(std::vector<unsigned int> &indices, std::vector<fl
         throw (std::exception());
     }
 
+    bool shouldReflect = false;
+
     for (int stack = 0; stack <= numStacks; ++stack) {
         float phi = stack * M_PI / numStacks;
         float sinPhi = sin(phi);
@@ -48,20 +50,22 @@ void Sphere::sphereGeneration(std::vector<unsigned int> &indices, std::vector<fl
             vertices.push_back(radius * cosPhi);
 
             // Add color to vertices
-            vertices.push_back(color[0]);
-            vertices.push_back(color[1]);
-            vertices.push_back(color[2]);
+//            vertices.push_back(color[0]);
+//            vertices.push_back(color[1]);
+//            vertices.push_back(color[2]);
 
-//            if (slice == 0 || slice == numSlices / 2) {
-//                vertices.push_back(0.0f);
-//                vertices.push_back(0.0f);
-//                vertices.push_back(0.0f);
-//            }
-//            else {
-//                vertices.push_back(color[0]);
-//                vertices.push_back(color[1]);
-//                vertices.push_back(color[2]);
-//            }
+            if ((slice % 3 != 0) && (stack > numStacks / 4 && stack < 3 * numStacks / 4)) {
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                vertices.push_back(1.0f);
+                shouldReflect = false;
+            }
+            else {
+                vertices.push_back(color[0]);
+                vertices.push_back(color[1]);
+                vertices.push_back(color[2]);
+                shouldReflect = true;
+            }
 
             // Calculate normal
             float x = sinPhi * cosTheta;
@@ -74,6 +78,13 @@ void Sphere::sphereGeneration(std::vector<unsigned int> &indices, std::vector<fl
             vertices.push_back(normal.x);
             vertices.push_back(normal.y);
             vertices.push_back(normal.z);
+
+            if (shouldReflect) {
+                vertices.push_back(1.0f); // should reflect
+            }
+            else {
+                vertices.push_back(0.0f); // shouldn't reflect
+            }
 
             // Add indices
             if (stack != numStacks && slice != numSlices) {
