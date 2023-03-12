@@ -32,9 +32,6 @@ public:
     // Updates and exports the camera matrix to the Vertex Shader
     void Matrix(glm::vec3 objectPos, glm::mat3 objectRot, float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform);
 
-    // Handles camera inputs
-    void Inputs(GLFWwindow *window){};
-
 private:
     glm::vec3 _lastObjPos{};
 };

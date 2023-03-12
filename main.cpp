@@ -5,6 +5,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 #include "shaderClass.h"
 #include "SpringArmCamera.h"
 #include "Table.h"
@@ -25,7 +28,6 @@ static PxDefaultErrorCallback merrorCallback;
 
 
 int main() {
-
     // PhysX simulation
     //    PxDefaultCpuDispatcher* cpuDispatcher = PxDefaultCpuDispatcherCreate(1);
     PxFoundation *foundation = PxCreateFoundation(PX_PHYSICS_VERSION, mallocator, merrorCallback);
@@ -53,7 +55,7 @@ int main() {
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
     ball->setAngularDamping(0.5f);
 //    ball->setLinearVelocity(PxVec3(0.2f, 0.0f, 0.0f));
-    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 10.0f));
+    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 8.0f));
 
     scene->addActor(*table);
     scene->addActor(*ball);
@@ -79,6 +81,21 @@ int main() {
         return -1;
     }
 
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 130");
+
     // Generates Shader object using shaders default.vert and default.frag
     Shader shaderProgram("default.vert", "default.frag");
     Shader shadowMapProgram("shadowMap.vert", "shadowMap.frag");
@@ -100,7 +117,8 @@ int main() {
     // Uses counter clock-wise standard
     glFrontFace(GL_CCW);
 
-    SpringArmCamera camera(WIDTH, HEIGHT, initialBallPos + glm::vec3(-3.0f, 2.0f, 0.0f), initialBallPos);
+    SpringArmCamera springArmCamera(WIDTH, HEIGHT, initialBallPos + glm::vec3(-3.0f, 2.0f, 0.0f), initialBallPos);
+    Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
 
     shaderProgram.Activate();
     glm::vec3 lightPos = glm::vec3(1.0f, 1.0f, -0.8f);
@@ -133,7 +151,20 @@ int main() {
     PxQuat ballRotation = ball->getGlobalPose().q;
     float lastBallAngle = glm::eulerAngles(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z)).y;
 
+    bool isOpen = true;
+    bool springCamera = true;
     while (!glfwWindowShouldClose(window)) {
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Debug window", &isOpen);
+        ImGui::Checkbox("Spring Camera", &springCamera);
+        ImGui::End();
+
+        ImGui::Render();
+
         scene->simulate(1.0f / 60.0f);
         scene->fetchResults(true);
 
@@ -184,11 +215,18 @@ int main() {
 
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
 
-        // Handles camera inputs
-        camera.Inputs(window);
         // Updates and exports the camera matrix to the Vertex Shader
-        camera.Matrix(glmBallP, glmBallR, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
-        glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        if (springCamera) {
+            springArmCamera.Matrix(glmBallP, glmBallR, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+            glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), springArmCamera.Position.x, springArmCamera.Position.y, springArmCamera.Position.z);
+        }
+        else {
+            // Handles camera inputs
+            camera.Inputs(window);
+            // Updates the camera matrix
+            camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+            glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+        }
 
         // Bind the Shadow Map to the Texture Unit 0
         shadowObject.bindTexture(shaderProgram.ID, 0);
@@ -201,18 +239,28 @@ int main() {
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
         ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
 
-        // Since the cubemap will always have a depth of 1.0, we need that equal sign so it doesn't get discarded
+        // Since the cubemap will alwdys have a depth of 1.0, we need that equal sign so it doesn't get discarded
         glDepthFunc(GL_LEQUAL);
 
         skyboxShader.Activate();
-        skybox.Draw(camera, WIDTH, HEIGHT);
+
+        if(springCamera)
+            skybox.Draw(springArmCamera, WIDTH, HEIGHT);
+        else
+            skybox.Draw(camera, WIDTH, HEIGHT);
 
         // Switch back to the normal depth function
         glDepthFunc(GL_LESS);
 
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     tableObject.Delete();
     ballObject.Delete();
