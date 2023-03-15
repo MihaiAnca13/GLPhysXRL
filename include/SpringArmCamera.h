@@ -13,6 +13,8 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include "shaderClass.h"
+#include "PxPhysicsAPI.h"
+#include "UtilsAngles.h"
 
 
 class SpringArmCamera {
@@ -25,15 +27,21 @@ public:
     // Stores the width and height of the window
     int width;
     int height;
+    float force = 0.01f;
+    float angle = 0.0f;
+    float sensitivity = 0.0174533f; // 1 degree
 
     // Camera constructor to set up initial values
     SpringArmCamera(int width, int height, glm::vec3 position, glm::vec3 objectPos);
 
     // Updates and exports the camera matrix to the Vertex Shader
-    void Matrix(glm::vec3 objectPos, glm::mat3 objectRot, float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform);
+    void Matrix(glm::vec3 objectPos, float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform);
+
+    void Inputs(GLFWwindow* window, physx::PxRigidDynamic* ball);
 
 private:
     glm::vec3 _lastObjPos{};
+    float _lastAngle = 0.0f;
 };
 
 #endif //C_ML_SPRING_ARM_CAMERA_H

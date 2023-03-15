@@ -47,15 +47,16 @@ int main() {
     glm::vec3 initialBallPos = glm::vec3(0.0f, 1.0f, 0.0f);
 
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
+//    PxRigidStatic* groundPlane = PxCreatePlane(*physics, PxPlane(0,1,0,0), *material);
+//    scene->addActor(*groundPlane);
     PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
     PxTransform ballTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity));
     PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
     PxSphereGeometry ballGeometry(ballRadius / 4);
     PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
-    PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 1.0f);
-    ball->setAngularDamping(0.5f);
-//    ball->setLinearVelocity(PxVec3(0.2f, 0.0f, 0.0f));
-    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 8.0f));
+    PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 10.0f);
+    ball->setAngularDamping(3.0f);
+//    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 8.0f));
 
     scene->addActor(*table);
     scene->addActor(*ball);
@@ -117,7 +118,7 @@ int main() {
     // Uses counter clock-wise standard
     glFrontFace(GL_CCW);
 
-    SpringArmCamera springArmCamera(WIDTH, HEIGHT, initialBallPos + glm::vec3(-3.0f, 2.0f, 0.0f), initialBallPos);
+    SpringArmCamera springArmCamera(WIDTH, HEIGHT, initialBallPos + glm::vec3(3.0f, 2.0f, 0.0f), initialBallPos);
     Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
 
     shaderProgram.Activate();
@@ -147,9 +148,7 @@ int main() {
     glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
     glm::vec3 glmBallP;
-    glm::mat3 glmBallR;
-    PxQuat ballRotation = ball->getGlobalPose().q;
-    float lastBallAngle = glm::eulerAngles(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z)).y;
+    PxQuat ballRotation;
 
     bool isOpen = true;
     bool springCamera = true;
@@ -180,10 +179,6 @@ int main() {
         shadowMapProgram.Activate();
 
         glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
-
-        float angle = glm::eulerAngles(glm::quat(ballRotation.w, ballRotation.x, ballRotation.y, ballRotation.z)).y;
-        glmBallR = glm::mat3_cast(glm::angleAxis(lastBallAngle - angle, glm::vec3(0, 1, 0)));
-        lastBallAngle = angle;
 
         // check if ball position is out of bounds
         if (glmBallP.x > BOUNDS || glmBallP.x < -BOUNDS || glmBallP.y > BOUNDS || glmBallP.y < -BOUNDS || glmBallP.z > BOUNDS || glmBallP.z < -BOUNDS) {
@@ -217,7 +212,8 @@ int main() {
 
         // Updates and exports the camera matrix to the Vertex Shader
         if (springCamera) {
-            springArmCamera.Matrix(glmBallP, glmBallR, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+            springArmCamera.Inputs(window, ball);
+            springArmCamera.Matrix(glmBallP, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
             glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), springArmCamera.Position.x, springArmCamera.Position.y, springArmCamera.Position.z);
         }
         else {
@@ -261,6 +257,18 @@ int main() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    PX_RELEASE(scene);
+    PX_RELEASE(gDispatcher);
+    PxCloseExtensions();
+    PX_RELEASE(physics);
+//    if(gPvd)
+//    {
+//        PxPvdTransport* transport = gPvd->getTransport();
+//        gPvd->release();	gPvd = NULL;
+//        PX_RELEASE(transport);
+//    }
+    PX_RELEASE(foundation);
 
     tableObject.Delete();
     ballObject.Delete();

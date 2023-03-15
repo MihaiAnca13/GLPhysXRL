@@ -14,8 +14,6 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- camera on ball toggle
-- controls for ball
 - create scene in Blender
 - load model in OpenGl
 - load mesh in Physx

@@ -17,7 +17,20 @@ find_package(imgui REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
-add_executable(c_ml main.cpp glad.c Camera.cpp shaderClass.cpp ${SOURCES} Shadow.cpp objects/Sphere.cpp objects/MyObjects.cpp objects/Table.cpp Skybox.cpp SpringArmCamera.cpp)
+add_executable(c_ml
+        main.cpp
+        glad.c
+        Camera.cpp
+        shaderClass.cpp
+        ${SOURCES}
+        Shadow.cpp
+        objects/Sphere.cpp
+        objects/MyObjects.cpp
+        objects/Table.cpp
+        Skybox.cpp
+        SpringArmCamera.cpp
+        UtilsAngles.cpp
+        )
 
 # Add third party directory
 add_subdirectory(libs)
