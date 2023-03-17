@@ -3,7 +3,6 @@
 //
 
 #include <cstdio>
-#include <cmath>
 #include "Table.h"
 
 

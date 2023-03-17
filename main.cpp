@@ -14,6 +14,7 @@
 #include "Sphere.h"
 #include "Shadow.h"
 #include "Skybox.h"
+#include "Model.h"
 
 using namespace std;
 using namespace physx;
@@ -74,7 +75,7 @@ int main() {
     // So that means we only have the modern functions
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "PhysX Table Simulation", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "PhysX C_ML Simulation", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
@@ -107,6 +108,7 @@ int main() {
 
     auto tableObject = Table(tableSize, 0.0f, tableColors);
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
+    auto obstacleScene = Model("resources/scene.obj");
 
     // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
@@ -197,6 +199,9 @@ int main() {
         // render table
         tableObject.Draw(shadowMapProgram.ID, tablePosition);
 
+        // render scene
+        obstacleScene.Draw(shaderProgram.ID);
+
         // render ball
         ballObject.Draw(shadowMapProgram.ID, ballPosition, ballRotation);
 
@@ -231,6 +236,9 @@ int main() {
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 8);
         tableObject.Draw(shaderProgram.ID, tablePosition);
 
+        // render scene
+        obstacleScene.Draw(shaderProgram.ID);
+
         // render ball
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
         ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
@@ -262,16 +270,18 @@ int main() {
     PX_RELEASE(gDispatcher);
     PxCloseExtensions();
     PX_RELEASE(physics);
+    PX_RELEASE(foundation);
 //    if(gPvd)
 //    {
 //        PxPvdTransport* transport = gPvd->getTransport();
 //        gPvd->release();	gPvd = NULL;
 //        PX_RELEASE(transport);
 //    }
-    PX_RELEASE(foundation);
+//    PX_RELEASE(foundation);
 
     tableObject.Delete();
     ballObject.Delete();
+    obstacleScene.Delete();
     shaderProgram.Delete();
     shadowMapProgram.Delete();
     skyboxShader.Delete();

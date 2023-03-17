@@ -14,6 +14,7 @@ find_package(Torch REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(imgui REQUIRED)
+find_package(assimp REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
@@ -30,7 +31,7 @@ add_executable(c_ml
         Skybox.cpp
         SpringArmCamera.cpp
         UtilsAngles.cpp
-        )
+        objects/Mesh.cpp objects/Model.cpp)
 
 # Add third party directory
 add_subdirectory(libs)
@@ -55,5 +56,5 @@ set(ALL_LIBS
 target_include_directories(c_ml PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-target_link_libraries(c_ml PRIVATE ${CMAKE_DL_LIBS} Threads::Threads ssl crypto imgui::imgui)
+target_link_libraries(c_ml PRIVATE ${CMAKE_DL_LIBS} Threads::Threads ssl crypto imgui::imgui assimp::assimp)
 target_link_libraries(c_ml PUBLIC "${TORCH_LIBRARIES}" glfw OpenGL::GL ${ALL_LIBS})
