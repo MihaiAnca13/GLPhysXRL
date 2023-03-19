@@ -71,7 +71,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     // Only use this if you don't have a framebuffer
-    glfwWindowHint(GLFW_SAMPLES, SAMPLES);
+//    glfwWindowHint(GLFW_SAMPLES, SAMPLES);
     // Tell GLFW we are using the CORE profile
     // So that means we only have the modern functions
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -128,8 +128,7 @@ int main() {
     // Enables Multisampling
     glEnable(GL_MULTISAMPLE);
     // Enables Cull Facing
-//    glEnable(GL_CULL_FACE);
-//    glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
     // Uses counter clock-wise standard
     glFrontFace(GL_CCW);
 
@@ -152,9 +151,9 @@ int main() {
     auto shadowObject = Shadow(2048, 2048);
 
     // Matrices needed for the light's perspective
-    const float orthoDistance = 1.0f;
-    glm::mat4 orthgonalProjection = glm::ortho(-orthoDistance, orthoDistance, -orthoDistance, orthoDistance, 0.1f, 75.0f);
-    glm::mat4 lightView = glm::lookAt(10.0f * lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    const float orthoDistance = 23.0f;
+    glm::mat4 orthgonalProjection = glm::ortho(-orthoDistance, orthoDistance, -orthoDistance, orthoDistance, 0.1f, 175.0f);
+    glm::mat4 lightView = glm::lookAt(50.0f * lightPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightProjection = orthgonalProjection * lightView;
 
     shadowMapProgram.Activate();
@@ -187,12 +186,6 @@ int main() {
 
 //        PxVec3 tablePosition = table->getGlobalPose().p;
 
-        // Depth testing needed for Shadow Map
-        glEnable(GL_DEPTH_TEST);
-
-        // Preparations for the Shadow Map
-        shadowMapProgram.Activate();
-
         glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
 
         // check if ball position is out of bounds
@@ -202,21 +195,30 @@ int main() {
             ball->setGlobalPose(PxTransform(glmBallP.x, glmBallP.y, glmBallP.z, ballRotation), true);
         }
 
-        lightView = glm::lookAt(10.0f * lightPos, glmBallP, glm::vec3(0.0f, 1.0f, 0.0f));
-        lightProjection = orthgonalProjection * lightView;
-        glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
+        // Depth testing needed for Shadow Map
+        glEnable(GL_DEPTH_TEST);
+
+        // Preparations for the Shadow Map
+        shadowMapProgram.Activate();
 
         shadowObject.bindFramebuffer();
         glClear(GL_DEPTH_BUFFER_BIT);
 
+//        lightView = glm::lookAt(10.0f * lightPos, glmBallP, glm::vec3(0.0f, 1.0f, 0.0f));
+//        lightProjection = orthgonalProjection * lightView;
+//        glUniformMatrix4fv(glGetUniformLocation(shadowMapProgram.ID, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
+
         // render table
 //        tableObject.Draw(shadowMapProgram.ID, tablePosition);
-
-        // render scene
-        obstacleScene.Draw(shaderProgram.ID);
+        glCullFace(GL_FRONT);
 
         // render ball
         ballObject.Draw(shadowMapProgram.ID, ballPosition, ballRotation);
+
+        // render scene
+        obstacleScene.Draw(shadowMapProgram.ID);
+
+        glCullFace(GL_BACK);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -260,6 +262,7 @@ int main() {
         // Since the cubemap will alwdys have a depth of 1.0, we need that equal sign so it doesn't get discarded
         glDepthFunc(GL_LEQUAL);
 
+        glFrontFace(GL_CW);
         skyboxShader.Activate();
 
         if(springCamera)
@@ -269,6 +272,7 @@ int main() {
 
         // Switch back to the normal depth function
         glDepthFunc(GL_LESS);
+        glFrontFace(GL_CCW);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
