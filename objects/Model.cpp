@@ -18,6 +18,52 @@ void Model::loadModel(const std::string &path) {
 }
 
 
+physx::PxTriangleMesh* Model::getTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking) {
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+
+    for (const Mesh& mesh : meshes)
+    {
+        size_t vertexOffset = vertices.size();
+        vertices.insert(vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+
+        for (unsigned int index : mesh.indices)
+            indices.push_back((unsigned int)(vertexOffset + index));
+    }
+
+    return createTriangleMesh(physics, cooking, vertices, indices);
+}
+
+
+physx::PxTriangleMesh* Model::createTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices)
+{
+    // Convert vertices to PxVec3
+    std::vector<physx::PxVec3> pxVertices(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i)
+        pxVertices[i] = physx::PxVec3(vertices[i].Position.x, vertices[i].Position.y, vertices[i].Position.z);
+
+    // Convert indices to PxU32
+    std::vector<physx::PxU32> pxIndices(indices.begin(), indices.end());
+
+    physx::PxTriangleMeshDesc meshDesc;
+    meshDesc.points.count = (physx::PxU32)pxVertices.size();
+    meshDesc.points.stride = sizeof(physx::PxVec3);
+    meshDesc.points.data = pxVertices.data();
+
+    meshDesc.triangles.count = (physx::PxU32)(pxIndices.size() / 3);
+    meshDesc.triangles.stride = 3 * sizeof(physx::PxU32);
+    meshDesc.triangles.data = pxIndices.data();
+
+    physx::PxDefaultMemoryOutputStream writeBuffer;
+    bool status = cooking->cookTriangleMesh(meshDesc, writeBuffer);
+    if (!status)
+        return nullptr;
+
+    physx::PxDefaultMemoryInputData readBuffer(writeBuffer.getData(), writeBuffer.getSize());
+    return physics->createTriangleMesh(readBuffer);
+}
+
+
 void Model::processNode(aiNode *node, const aiScene *scene) {
     // process all the node's meshes (if any)
     for (unsigned int i = 0; i < node->mNumMeshes; i++) {

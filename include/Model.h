@@ -11,6 +11,7 @@
 #include "assimp/Importer.hpp"
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
+#include <PxPhysicsAPI.h>
 
 
 class Model
@@ -23,6 +24,7 @@ public:
 
     void Draw(unsigned int shaderProgram) const;
     void Delete();
+    physx::PxTriangleMesh* getTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking);
 private:
     // model data
     std::vector<Mesh> meshes;
@@ -31,6 +33,8 @@ private:
     void loadModel(const std::string& path);
     void processNode(aiNode *node, const aiScene *scene);
     Mesh processMesh(aiMesh *mesh, const aiScene *scene);
+
+    physx::PxTriangleMesh* createTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
 };
 
 #endif //C_ML_MODEL_H

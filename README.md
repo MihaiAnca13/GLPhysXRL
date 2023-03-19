@@ -18,8 +18,6 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- create scene in Blender
-- load model in OpenGl
 - load mesh in Physx
 - wrap environment in class
 - headless mode

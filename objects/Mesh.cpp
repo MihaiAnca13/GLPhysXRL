@@ -41,6 +41,12 @@ void Mesh::setupMesh()
     glEnableVertexAttribArray(3);
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Reflectivity));
 
+    GLenum error = glGetError();
+    while (error != GL_NO_ERROR) {
+        std::cout << "OpenGL Error: " << error << std::endl;
+        error = glGetError();
+    }
+
 //    glBindVertexArray(0);
 }
 

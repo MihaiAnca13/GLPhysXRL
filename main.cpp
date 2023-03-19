@@ -39,27 +39,28 @@ int main() {
     auto gDispatcher = PxDefaultCpuDispatcherCreate(2);
     sceneDesc.cpuDispatcher = gDispatcher;
     sceneDesc.filterShader = PxDefaultSimulationFilterShader;
-
+    PxCookingParams params(physics->getTolerancesScale());
+    PxCooking* cooking = PxCreateCooking(PX_PHYSICS_VERSION, *foundation, params);
     PxScene *scene = physics->createScene(sceneDesc);
 
     const float ballRadius = 1.0f;
-    const float tableSize = 30.0f;
+//    const float tableSize = 30.0f;
 
-    glm::vec3 initialBallPos = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 initialBallPos = glm::vec3(0.0f, 5.0f, 0.0f);
 
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
 //    PxRigidStatic* groundPlane = PxCreatePlane(*physics, PxPlane(0,1,0,0), *material);
 //    scene->addActor(*groundPlane);
-    PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
+//    PxTransform tableTransform(PxVec3(0.0f, 0.0f, 0.0f), PxQuat(PxIdentity));
     PxTransform ballTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity));
-    PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
+//    PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
     PxSphereGeometry ballGeometry(ballRadius / 4);
-    PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
+//    PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
     PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 10.0f);
     ball->setAngularDamping(3.0f);
 //    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 8.0f));
 
-    scene->addActor(*table);
+//    scene->addActor(*table);
     scene->addActor(*ball);
 
     // OpenGL rendering
@@ -104,11 +105,23 @@ int main() {
     Shader skyboxShader("skybox.vert", "skybox.frag");
 
     float ballColors[3] = {0.2f, 0.5f, 0.8f};
-    float tableColors[3] = {0.3373f, 0.4902f, 0.2745f};
+//    float tableColors[3] = {0.3373f, 0.4902f, 0.2745f};
 
-    auto tableObject = Table(tableSize, 0.0f, tableColors);
+//    auto tableObject = Table(tableSize, 0.0f, tableColors);
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
     auto obstacleScene = Model("resources/scene.obj");
+
+    PxTriangleMesh *worldSceneTriangleMesh = obstacleScene.getTriangleMesh(physics, cooking);
+    // Create a rigid static actor
+    PxTransform transform(PxVec3(0.0f));
+    PxRigidStatic* worldActor = physics->createRigidStatic(transform);
+    // Create a triangle mesh geometry
+    PxTriangleMeshGeometry geometry(worldSceneTriangleMesh);
+    // Create and attach a shape
+    PxRigidActorExt::createExclusiveShape(*worldActor, geometry, *material);
+    PxRigidBodyExt::updateMassAndInertia(*ball, 10.0f);
+    // Add the actor to the scene
+    scene->addActor(*worldActor);
 
     // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
@@ -120,7 +133,7 @@ int main() {
     // Uses counter clock-wise standard
     glFrontFace(GL_CCW);
 
-    SpringArmCamera springArmCamera(WIDTH, HEIGHT, initialBallPos + glm::vec3(3.0f, 2.0f, 0.0f), initialBallPos);
+    SpringArmCamera springArmCamera(WIDTH, HEIGHT, initialBallPos + glm::vec3(3.0f, 1.0f, 0.0f), initialBallPos);
     Camera camera(WIDTH, HEIGHT, glm::vec3(0.0f, 1.0f, 5.0f));
 
     shaderProgram.Activate();
@@ -172,7 +185,7 @@ int main() {
         PxVec3 ballPosition = ball->getGlobalPose().p;
         ballRotation = ball->getGlobalPose().q;
 
-        PxVec3 tablePosition = table->getGlobalPose().p;
+//        PxVec3 tablePosition = table->getGlobalPose().p;
 
         // Depth testing needed for Shadow Map
         glEnable(GL_DEPTH_TEST);
@@ -197,7 +210,7 @@ int main() {
         glClear(GL_DEPTH_BUFFER_BIT);
 
         // render table
-        tableObject.Draw(shadowMapProgram.ID, tablePosition);
+//        tableObject.Draw(shadowMapProgram.ID, tablePosition);
 
         // render scene
         obstacleScene.Draw(shaderProgram.ID);
@@ -233,10 +246,11 @@ int main() {
         shadowObject.bindTexture(shaderProgram.ID, 0);
 
         // render table
-        glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 8);
-        tableObject.Draw(shaderProgram.ID, tablePosition);
+//        glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 8);
+//        tableObject.Draw(shaderProgram.ID, tablePosition);
 
         // render scene
+        glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 2);
         obstacleScene.Draw(shaderProgram.ID);
 
         // render ball
@@ -271,6 +285,7 @@ int main() {
     PxCloseExtensions();
     PX_RELEASE(physics);
     PX_RELEASE(foundation);
+    PX_RELEASE(cooking);
 //    if(gPvd)
 //    {
 //        PxPvdTransport* transport = gPvd->getTransport();
@@ -279,7 +294,7 @@ int main() {
 //    }
 //    PX_RELEASE(foundation);
 
-    tableObject.Delete();
+//    tableObject.Delete();
     ballObject.Delete();
     obstacleScene.Delete();
     shaderProgram.Delete();
