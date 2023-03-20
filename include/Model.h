@@ -14,27 +14,30 @@
 #include <PxPhysicsAPI.h>
 
 
-class Model
-{
+class Model {
 public:
-    explicit Model(const char *path)
-    {
+    explicit Model(const char *path) {
         loadModel(path);
     }
 
     void Draw(unsigned int shaderProgram) const;
+
     void Delete();
-    physx::PxTriangleMesh* getTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking);
+
+    void addActorsToScene(physx::PxPhysics *physics, physx::PxCooking *cooking, physx::PxScene *scene, physx::PxMaterial *material);
+
 private:
     // model data
     std::vector<Mesh> meshes;
     std::string directory;
 
-    void loadModel(const std::string& path);
+    void loadModel(const std::string &path);
+
     void processNode(aiNode *node, const aiScene *scene);
+
     Mesh processMesh(aiMesh *mesh, const aiScene *scene);
 
-    physx::PxTriangleMesh* createTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices);
+    physx::PxTriangleMesh *createTriangleMesh(physx::PxPhysics *physics, physx::PxCooking *cooking, const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices);
 };
 
 #endif //C_ML_MODEL_H

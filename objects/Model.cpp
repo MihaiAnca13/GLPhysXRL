@@ -18,25 +18,23 @@ void Model::loadModel(const std::string &path) {
 }
 
 
-physx::PxTriangleMesh* Model::getTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking) {
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-
-    for (const Mesh& mesh : meshes)
-    {
-        size_t vertexOffset = vertices.size();
-        vertices.insert(vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
-
-        for (unsigned int index : mesh.indices)
-            indices.push_back((unsigned int)(vertexOffset + index));
+void Model::addActorsToScene(physx::PxPhysics *physics, physx::PxCooking *cooking, physx::PxScene *scene, physx::PxMaterial *material) {
+    for (const Mesh &mesh: meshes) {
+        physx::PxTriangleMesh *worldSceneTriangleMesh = createTriangleMesh(physics, cooking, mesh.vertices, mesh.indices);;
+        // Create a rigid static actor
+        physx::PxTransform transform(physx::PxVec3(0.0f));
+        physx::PxRigidStatic *worldActor = physics->createRigidStatic(transform);
+        // Create a triangle mesh geometry
+        physx::PxTriangleMeshGeometry geometry(worldSceneTriangleMesh);
+        // Create and attach a shape
+        physx::PxRigidActorExt::createExclusiveShape(*worldActor, geometry, *material);
+        // Add the actor to the scene
+        scene->addActor(*worldActor);
     }
-
-    return createTriangleMesh(physics, cooking, vertices, indices);
 }
 
 
-physx::PxTriangleMesh* Model::createTriangleMesh(physx::PxPhysics* physics, physx::PxCooking* cooking, const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices)
-{
+physx::PxTriangleMesh *Model::createTriangleMesh(physx::PxPhysics *physics, physx::PxCooking *cooking, const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices) {
     // Convert vertices to PxVec3
     std::vector<physx::PxVec3> pxVertices(vertices.size());
     for (size_t i = 0; i < vertices.size(); ++i)
@@ -46,11 +44,11 @@ physx::PxTriangleMesh* Model::createTriangleMesh(physx::PxPhysics* physics, phys
     std::vector<physx::PxU32> pxIndices(indices.begin(), indices.end());
 
     physx::PxTriangleMeshDesc meshDesc;
-    meshDesc.points.count = (physx::PxU32)pxVertices.size();
+    meshDesc.points.count = (physx::PxU32) pxVertices.size();
     meshDesc.points.stride = sizeof(physx::PxVec3);
     meshDesc.points.data = pxVertices.data();
 
-    meshDesc.triangles.count = (physx::PxU32)(pxIndices.size() / 3);
+    meshDesc.triangles.count = (physx::PxU32) (pxIndices.size() / 3);
     meshDesc.triangles.stride = 3 * sizeof(physx::PxU32);
     meshDesc.triangles.data = pxIndices.data();
 
@@ -78,12 +76,12 @@ void Model::processNode(aiNode *node, const aiScene *scene) {
 
 
 Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+//    printf("Processing mesh %s\n", mesh->mName.C_Str());
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     aiMaterial *material = nullptr;
 
-    if(mesh->mMaterialIndex >= 0)
-    {
+    if (mesh->mMaterialIndex >= 0) {
         material = scene->mMaterials[mesh->mMaterialIndex];
     }
 
@@ -103,8 +101,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
             aiColor4D diffuse;
             if (AI_SUCCESS == aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &diffuse))
                 vertex.Color = glm::vec3(diffuse.r, diffuse.g, diffuse.b);
-        }
-        else {
+        } else {
             vertex.Color = glm::vec3(0.1373f, 0.2235f, 0.3647f); // dark blue
         }
         vertex.Reflectivity = 0.0f;

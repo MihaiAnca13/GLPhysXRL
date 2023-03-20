@@ -22,8 +22,8 @@ using namespace physx;
 static PxDefaultAllocator mallocator;
 static PxDefaultErrorCallback merrorCallback;
 
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 800   // 1920
+#define HEIGHT 600  // 1080
 #define SAMPLES 8
 #define BOUNDS 100.0f
 
@@ -111,17 +111,8 @@ int main() {
     auto ballObject = Sphere(30, 30, ballRadius, ballColors);
     auto obstacleScene = Model("resources/scene.obj");
 
-    PxTriangleMesh *worldSceneTriangleMesh = obstacleScene.getTriangleMesh(physics, cooking);
-    // Create a rigid static actor
-    PxTransform transform(PxVec3(0.0f));
-    PxRigidStatic* worldActor = physics->createRigidStatic(transform);
-    // Create a triangle mesh geometry
-    PxTriangleMeshGeometry geometry(worldSceneTriangleMesh);
-    // Create and attach a shape
-    PxRigidActorExt::createExclusiveShape(*worldActor, geometry, *material);
-    PxRigidBodyExt::updateMassAndInertia(*ball, 10.0f);
-    // Add the actor to the scene
-    scene->addActor(*worldActor);
+    obstacleScene.addActorsToScene(physics, cooking, scene, material);
+    physx::PxRigidBodyExt::updateMassAndInertia(*ball, 10.0f);
 
     // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
@@ -148,7 +139,7 @@ int main() {
     auto skybox = Skybox(skyboxShader.ID);
 
     // Framebuffer for Shadow Map
-    auto shadowObject = Shadow(2048, 2048);
+    auto shadowObject = Shadow(4096, 4096);
 
     // Matrices needed for the light's perspective
     const float orthoDistance = 23.0f;
@@ -233,7 +224,7 @@ int main() {
         // Updates and exports the camera matrix to the Vertex Shader
         if (springCamera) {
             springArmCamera.Inputs(window, ball);
-            springArmCamera.Matrix(glmBallP, 45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
+            springArmCamera.Matrix(glmBallP, 45.0f, 1.6f, 100.0f, shaderProgram, "camMatrix");
             glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), springArmCamera.Position.x, springArmCamera.Position.y, springArmCamera.Position.z);
         }
         else {
