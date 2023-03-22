@@ -27,7 +27,7 @@ public:
     // Stores the width and height of the window
     int width;
     int height;
-    float force = 0.01f;
+    float force = 0.015f;
     float angle = 0.0f;
     float sensitivity = 0.0174533f; // 1 degree
 

@@ -10,6 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vector>
 #include "shaderClass.h"
+#include <string>
 #include <utility>
 
 
@@ -25,10 +26,13 @@ public:
     // mesh data
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
+    std::string name;
+    float minDistance = 2.9f;
 
-    Mesh(std::vector <Vertex> vertices, std::vector<unsigned int> indices);
+    Mesh(const std::string& name, std::vector <Vertex> vertices, std::vector<unsigned int> indices);
 
     void Draw(unsigned int shaderProgram) const;
+    void Draw(unsigned int shaderProgram, glm::vec3 ballPosition, glm::vec3 cameraPosition);
 
     void Delete();
 
@@ -37,6 +41,13 @@ private:
     unsigned int VAO, VBO, EBO;
 
     void setupMesh();
+
+    bool rayIntersectsTriangle(glm::vec3 rayOrigin,
+                               glm::vec3 rayDirection,
+                               glm::vec3 vertex0,
+                               glm::vec3 vertex1,
+                               glm::vec3 vertex2,
+                               float &distance);
 };
 
 

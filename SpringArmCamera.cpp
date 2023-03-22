@@ -64,7 +64,7 @@ void SpringArmCamera::Inputs(GLFWwindow *window, physx::PxRigidDynamic *ball) {
         isChange = true;
     }
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        impulseForce.x *= 10;
+        impulseForce.x *= 3;
     }
 
     // Wrap angle between -PI and PI

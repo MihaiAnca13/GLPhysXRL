@@ -81,6 +81,9 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     std::vector<unsigned int> indices;
     aiMaterial *material = nullptr;
 
+    // get name
+    std::string name = mesh->mName.C_Str();
+
     if (mesh->mMaterialIndex >= 0) {
         material = scene->mMaterials[mesh->mMaterialIndex];
     }
@@ -114,13 +117,19 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
             indices.push_back(face.mIndices[j]);
     }
 
-    return {vertices, indices};
+    return {name, vertices, indices};
 }
 
 
 void Model::Draw(unsigned int shaderProgram) const {
     for (const auto &mesh: meshes)
         mesh.Draw(shaderProgram);
+}
+
+
+void Model::Draw(unsigned int shaderProgram, glm::vec3 ballPosition, glm::vec3 cameraPosition) {
+    for (auto &mesh: meshes)
+        mesh.Draw(shaderProgram, ballPosition, cameraPosition);
 }
 
 

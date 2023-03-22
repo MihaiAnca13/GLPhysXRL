@@ -26,6 +26,7 @@ static PxDefaultErrorCallback merrorCallback;
 #define HEIGHT 600  // 1080
 #define SAMPLES 8
 #define BOUNDS 100.0f
+#define BALL_DENSITY 2.0f
 
 
 int main() {
@@ -46,7 +47,7 @@ int main() {
     const float ballRadius = 1.0f;
 //    const float tableSize = 30.0f;
 
-    glm::vec3 initialBallPos = glm::vec3(0.0f, 5.0f, 0.0f);
+    glm::vec3 initialBallPos = glm::vec3(13.0f, 1.0f, 7.8f);
 
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
 //    PxRigidStatic* groundPlane = PxCreatePlane(*physics, PxPlane(0,1,0,0), *material);
@@ -56,7 +57,7 @@ int main() {
 //    PxBoxGeometry tableGeometry(PxVec3(tableSize / 8, 0.0001f, tableSize / 8));
     PxSphereGeometry ballGeometry(ballRadius / 4);
 //    PxRigidStatic *table = PxCreateStatic(*physics, tableTransform, tableGeometry, *material);
-    PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, 10.0f);
+    PxRigidDynamic *ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, BALL_DENSITY);
     ball->setAngularDamping(3.0f);
 //    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 8.0f));
 
@@ -112,7 +113,7 @@ int main() {
     auto obstacleScene = Model("resources/scene.obj");
 
     obstacleScene.addActorsToScene(physics, cooking, scene, material);
-    physx::PxRigidBodyExt::updateMassAndInertia(*ball, 10.0f);
+    physx::PxRigidBodyExt::updateMassAndInertia(*ball, BALL_DENSITY);
 
     // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
@@ -244,7 +245,12 @@ int main() {
 
         // render scene
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 2);
-        obstacleScene.Draw(shaderProgram.ID);
+        if (springCamera) {
+            obstacleScene.Draw(shaderProgram.ID, glmBallP, springArmCamera.Position);
+        }
+        else {
+            obstacleScene.Draw(shaderProgram.ID);
+        }
 
         // render ball
         glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
