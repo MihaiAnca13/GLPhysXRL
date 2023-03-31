@@ -11,6 +11,7 @@
 class Sphere : public MyObjects {
 public:
     Sphere(int numSlices, int numStacks, float radius, float* colors);
+    Sphere() = default;
 
     void Draw(unsigned int shaderProgram, const physx::PxVec3& position, const physx::PxQuat& rotation) const;
 

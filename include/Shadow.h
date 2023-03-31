@@ -12,6 +12,7 @@
 class Shadow {
 public:
     Shadow(unsigned int shadowMapWidth, unsigned int shadowMapHeight);
+    Shadow() = default;
     unsigned int FBO, shadowMapWidth, shadowMapHeight, shadowMap;
 
     void bindFramebuffer() const;

@@ -58,7 +58,7 @@ Skybox::Skybox(unsigned int shaderID) : shaderID(shaderID) {
             stbi_image_free(data);
         }
     }
-};
+}
 
 void Skybox::Draw(Camera camera, unsigned int width, unsigned int height) const {
     glm::mat4 view = glm::mat4(1.0f);

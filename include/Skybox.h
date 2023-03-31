@@ -20,6 +20,7 @@ public:
     unsigned int VAO, VBO, EBO, texture, shaderID;
 
     explicit Skybox(unsigned int shaderID);
+    Skybox() = default;
     void Draw(Camera camera, unsigned int width, unsigned int height) const;
     void Draw(SpringArmCamera camera, unsigned int width, unsigned int height) const;
 
@@ -35,7 +36,7 @@ private:
                     "resources/skybox/nz.png"
             };
 
-    const float skyboxVertices[24] =
+    float skyboxVertices[24] =
             {
                     //   Coordinates
                     -1.0f, -1.0f, 1.0f,//        7--------6
@@ -48,7 +49,7 @@ private:
                     -1.0f, 1.0f, -1.0f
             };
 
-    const unsigned int skyboxIndices[36] =
+    unsigned int skyboxIndices[36] =
             {
                     // Right
                     1, 2, 6,

@@ -27,12 +27,13 @@ public:
     // Stores the width and height of the window
     int width;
     int height;
-    float force = 0.015f;
+    float force = 0.008f;
     float angle = 0.0f;
     float sensitivity = 0.0174533f; // 1 degree
 
     // Camera constructor to set up initial values
     SpringArmCamera(int width, int height, glm::vec3 position, glm::vec3 objectPos);
+    SpringArmCamera() = default;
 
     // Updates and exports the camera matrix to the Vertex Shader
     void Matrix(glm::vec3 objectPos, float FOVdeg, float nearPlane, float farPlane, Shader &shader, const char *uniform);

@@ -19,6 +19,7 @@ public:
     explicit Model(const char *path) {
         loadModel(path);
     }
+    Model() = default;
 
     void Draw(unsigned int shaderProgram) const;
     void Draw(unsigned int shaderProgram, glm::vec3 ballPosition, glm::vec3 cameraPosition);

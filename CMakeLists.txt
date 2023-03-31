@@ -31,7 +31,7 @@ add_executable(c_ml
         Skybox.cpp
         SpringArmCamera.cpp
         UtilsAngles.cpp
-        objects/Mesh.cpp objects/Model.cpp)
+        objects/Mesh.cpp objects/Model.cpp Environment.cpp)
 
 # Add third party directory
 add_subdirectory(libs)
