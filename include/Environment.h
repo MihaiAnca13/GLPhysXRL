@@ -27,6 +27,13 @@ using namespace std;
 using namespace physx;
 
 
+typedef struct {
+    PxVec3 ballPosition;
+    PxVec3 ballVelocity;
+    float direction;
+} Observation;
+
+
 class Environment {
 public:
     static PxDefaultAllocator mallocator;
@@ -36,11 +43,17 @@ public:
     int mHeight;
     float mBounds;
     float mBallDensity;
+    int numSubsteps = 5;
+    bool manualControl = false;
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
-    glm::vec3 initialBallPos = glm::vec3(13.0f, 1.0f, 7.8f);
+    glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
     PxQuat ballRotation;
     PxVec3 ballPosition;
+
+    float angle = 0.0f;
+    float sensitivity = 0.0174533f * 2.0f; // 2 degrees
+    float maxForce = 0.375f;
 
     const float ballRadius = 1.0f;
 
@@ -69,13 +82,21 @@ public:
     Sphere ballObject;
     Model obstacleScene;
 
-    Environment(int width, int height, float bounds, float ballDensity) : mWidth(width), mHeight(height), mBounds(bounds), mBallDensity(ballDensity) {
+    Environment(int width, int height, float bounds, float ballDensity, int numSubsteps, bool manualControl) : mWidth(width), mHeight(height), mBounds(bounds), mBallDensity(ballDensity), numSubsteps(numSubsteps), manualControl(manualControl) {
         Init();
     };
 
     void CleanUp();
 
-    void Step();
+    void StepPhysics();
+
+    Observation Step(float force, float angle, bool render = false);
+
+    Observation Reset();
+
+    Observation GetObservation();
+
+    void Render();
 
     void Init();
 };

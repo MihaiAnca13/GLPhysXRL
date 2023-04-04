@@ -118,7 +118,68 @@ void Environment::Init() {
 }
 
 
-void Environment::Step() {
+void Environment::StepPhysics() {
+    scene->simulate(1.0f / 60.0f);
+    scene->fetchResults(true);
+
+    ballPosition = ball->getGlobalPose().p;
+    ballRotation = ball->getGlobalPose().q;
+}
+
+
+Observation Environment::Reset() {
+    ball->setLinearVelocity(PxVec3(0.0f, 0.0f, 0.0f));
+    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
+    ball->setGlobalPose(PxTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity)));
+    angle = 0.0f;
+    springArmCamera = SpringArmCamera(mWidth, mHeight, initialBallPos + glm::vec3(3.0f, 1.0f, 0.0f), initialBallPos);
+    StepPhysics();
+    return GetObservation();
+}
+
+
+Observation Environment::GetObservation() {
+    return {ballPosition, ballPosition, angle};
+}
+
+
+Observation Environment::Step(float force, float rotation, bool render) {
+    // clamp force and rotation between -1 and 1
+    force = std::clamp(-force, -1.0f, 1.0f) * maxForce;
+    rotation = std::clamp(rotation, -1.0f, 1.0f);
+
+    if (!manualControl) {
+        // update angle using sensitivity
+        angle += rotation * sensitivity;
+
+        // apply force at given angle
+        ball->addForce(PxVec3(force * cos(angle), 0.0f, force * sin(angle)), PxForceMode::eFORCE, true);
+    }
+
+    // 5 substeps
+    for (int i = 0; i < numSubsteps; i++) {
+        // step physics
+        StepPhysics();
+        // render
+        if (render) {
+            Render();
+        }
+    }
+
+    // check if ball position is out of bounds in PhysX
+    if (ballPosition.x > mBounds || ballPosition.x < -mBounds || ballPosition.y > mBounds || ballPosition.y < -mBounds || ballPosition.z > mBounds || ballPosition.z < -mBounds) {
+        // clamp ball position to bounds
+        ballPosition.x = std::clamp(ballPosition.x, -mBounds, mBounds);
+        ballPosition.y = std::clamp(ballPosition.y, -mBounds, mBounds);
+        ballPosition.z = std::clamp(ballPosition.z, -mBounds, mBounds);
+        ball->setGlobalPose(PxTransform(PxVec3(ballPosition.x, ballPosition.y, ballPosition.z), ballRotation), true);
+    }
+
+    return GetObservation();
+}
+
+
+void Environment::Render() {
     if (glfwWindowShouldClose(window)) {
         return;
     }
@@ -134,20 +195,7 @@ void Environment::Step() {
 
     ImGui::Render();
 
-    scene->simulate(1.0f / 60.0f);
-    scene->fetchResults(true);
-
-    ballPosition = ball->getGlobalPose().p;
-    ballRotation = ball->getGlobalPose().q;
-
     glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
-
-    // check if ball position is out of bounds
-    if (glmBallP.x > mBounds || glmBallP.x < -mBounds || glmBallP.y > mBounds || glmBallP.y < -mBounds || glmBallP.z > mBounds || glmBallP.z < -mBounds) {
-        glmBallP = glm::clamp(glmBallP, glm::vec3(-mBounds), glm::vec3(mBounds));
-
-        ball->setGlobalPose(PxTransform(glmBallP.x, glmBallP.y, glmBallP.z, ballRotation), true);
-    }
 
     // Depth testing needed for Shadow Map
     glEnable(GL_DEPTH_TEST);
@@ -181,7 +229,14 @@ void Environment::Step() {
 
     // Updates and exports the camera matrix to the Vertex Shader
     if (springCamera) {
-        springArmCamera.Inputs(window, ball);
+        if (manualControl) {
+            springArmCamera.Inputs(window, ball);
+            angle = springArmCamera.angle;
+        }
+        else {
+            springArmCamera.angle = angle;
+        }
+
         springArmCamera.Matrix(glmBallP, 45.0f, 1.6f, 100.0f, shaderProgram, "camMatrix");
         glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), springArmCamera.Position.x, springArmCamera.Position.y, springArmCamera.Position.z);
     } else {
@@ -226,6 +281,7 @@ void Environment::Step() {
     glfwSwapBuffers(window);
     glfwPollEvents();
 }
+
 
 void Environment::CleanUp() {
     // Cleanup
