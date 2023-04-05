@@ -20,4 +20,5 @@ Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProj
 
 ## TODO
 - write RL agent/model
+- curriculum learning
 - train loop!

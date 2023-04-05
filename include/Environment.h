@@ -26,12 +26,31 @@
 using namespace std;
 using namespace physx;
 
+typedef struct {
+    int width;
+    int height;
+    float bounds;
+    float ballDensity;
+    int numSubsteps;
+    bool manualControl;
+    bool headless;
+    int maxSteps;
+    float threshold;
+    float bonusAchievedReward;
+} Config;
+
 
 typedef struct {
     PxVec3 ballPosition;
     PxVec3 ballVelocity;
     float direction;
 } Observation;
+
+typedef struct {
+    Observation observation;
+    double reward;
+    bool done;
+} StepResult;
 
 
 class Environment {
@@ -46,6 +65,13 @@ public:
     int numSubsteps = 5;
     bool manualControl = false;
     bool headless = false;
+    int maxSteps = 100;
+    float threshold = 0.03f;
+    float bonusAchievedReward = 10.0f;
+
+    int _step = 0;
+
+    PxVec3 goalPosition = PxVec3(-6.61703f, 1.31621f, -1.71782f);
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
     glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
@@ -83,7 +109,17 @@ public:
     Sphere ballObject;
     Model obstacleScene;
 
-    Environment(int width, int height, float bounds, float ballDensity, int numSubsteps, bool manualControl, bool headless) : mWidth(width), mHeight(height), mBounds(bounds), mBallDensity(ballDensity), numSubsteps(numSubsteps), manualControl(manualControl), headless(headless) {
+    Environment(Config config) {
+        mWidth = config.width;
+        mHeight = config.height;
+        mBounds = config.bounds;
+        mBallDensity = config.ballDensity;
+        numSubsteps = config.numSubsteps;
+        manualControl = config.manualControl;
+        headless = config.headless;
+        maxSteps = config.maxSteps;
+        threshold = config.threshold;
+        bonusAchievedReward = config.bonusAchievedReward;
         Init();
     };
 
@@ -91,11 +127,13 @@ public:
 
     void StepPhysics();
 
-    Observation Step(float force, float angle);
+    StepResult Step(float force, float angle);
 
     Observation Reset();
 
     Observation GetObservation();
+
+    double ComputeReward();
 
     void Render();
 

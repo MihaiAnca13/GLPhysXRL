@@ -143,6 +143,7 @@ Observation Environment::Reset() {
     ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
     ball->setGlobalPose(PxTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity)));
     angle = 0.0f;
+    _step = 0;
     springArmCamera = SpringArmCamera(mWidth, mHeight, initialBallPos + glm::vec3(3.0f, 1.0f, 0.0f), initialBallPos);
     StepPhysics();
     return GetObservation();
@@ -154,7 +155,7 @@ Observation Environment::GetObservation() {
 }
 
 
-Observation Environment::Step(float force, float rotation) {
+StepResult Environment::Step(float force, float rotation) {
     // clamp force and rotation between -1 and 1
     force = std::clamp(-force, -1.0f, 1.0f) * maxForce;
     rotation = std::clamp(rotation, -1.0f, 1.0f);
@@ -186,7 +187,14 @@ Observation Environment::Step(float force, float rotation) {
         ball->setGlobalPose(PxTransform(PxVec3(ballPosition.x, ballPosition.y, ballPosition.z), ballRotation), true);
     }
 
-    return GetObservation();
+    _step++;
+    bool done = false;
+
+    if (_step >= maxSteps) {
+        done = true;
+    }
+
+    return {GetObservation(), ComputeReward(), done};
 }
 
 
@@ -322,4 +330,22 @@ void Environment::CleanUp() {
     skyboxShader.Delete();
     glfwDestroyWindow(window);
     glfwTerminate();
+}
+
+
+double Environment::ComputeReward() {
+    // compute reward as mean squared error between goal and ball position
+    double dist = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        dist += pow(goalPosition[i] - ballPosition[i], 2);
+    }
+    dist = dist / 3.0f;
+
+    double reward = -dist;
+    // if within threshold of target, add bonus reward
+    if (dist < threshold) {
+        reward += bonusAchievedReward;
+    }
+
+    return reward;
 }

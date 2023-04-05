@@ -6,18 +6,30 @@ using std::cout, std::endl;
 
 
 int main() {
-    Environment environment(800, 600, 100.0f, 1.0f, 5, false, false);
+    Config config{.width = 800,
+                  .height = 600,
+                  .bounds = 100.0f,
+                  .ballDensity = 1.0f,
+                  .numSubsteps =5 ,
+                  .manualControl = true,
+                  .headless = false,
+                  .maxSteps = 1000,
+                  .threshold = 0.03f,
+                  .bonusAchievedReward = 10.0f,
+    };
+
+    Environment environment(config);
     environment.Reset();
 
-    int i = 0;
-
     while (!glfwWindowShouldClose(environment.window)) {
-        auto obs = environment.Step(1.0f, 0.0f);
+        auto stepRes = environment.Step(1.0f, 0.0f);
 
-        i++;
-        if (i > 350) {
+        cout << "reward: " << stepRes.reward << endl;
+//        auto obs = stepRes.observation;
+//        cout << obs.ballPosition.x << " " << obs.ballPosition.y << " " << obs.ballPosition.z << endl;
+
+        if (stepRes.done) {
             environment.Reset();
-            i = 0;
         }
     }
 
