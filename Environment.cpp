@@ -8,6 +8,9 @@ PxDefaultErrorCallback Environment::merrorCallback;
 
 
 void Environment::Init() {
+    // assert headless is true if manualControl is true, but allow for both to be false
+    assert(!manualControl || headless);
+
     // PhysX simulation
     foundation = PxCreateFoundation(PX_PHYSICS_VERSION, mallocator, merrorCallback);
 
@@ -27,6 +30,14 @@ void Environment::Init() {
     ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, mBallDensity);
     ball->setAngularDamping(3.0f);
     scene->addActor(*ball);
+
+    if (headless) {
+        obstacleScene = Model("resources/scene.obj", headless);
+
+        obstacleScene.addActorsToScene(physics, cooking, scene, material);
+        physx::PxRigidBodyExt::updateMassAndInertia(*ball, mBallDensity);
+        return;
+    }
 
     // OpenGL rendering
     glfwInit();
@@ -143,7 +154,7 @@ Observation Environment::GetObservation() {
 }
 
 
-Observation Environment::Step(float force, float rotation, bool render) {
+Observation Environment::Step(float force, float rotation) {
     // clamp force and rotation between -1 and 1
     force = std::clamp(-force, -1.0f, 1.0f) * maxForce;
     rotation = std::clamp(rotation, -1.0f, 1.0f);
@@ -161,7 +172,7 @@ Observation Environment::Step(float force, float rotation, bool render) {
         // step physics
         StepPhysics();
         // render
-        if (render) {
+        if (!headless) {
             Render();
         }
     }

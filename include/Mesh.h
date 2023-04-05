@@ -23,13 +23,15 @@ struct Vertex {
 
 class Mesh {
 public:
+    bool headless = false;
+
     // mesh data
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::string name;
     float minDistance = 2.9f;
 
-    Mesh(const std::string& name, std::vector <Vertex> vertices, std::vector<unsigned int> indices);
+    Mesh(const std::string& name, std::vector <Vertex> vertices, std::vector<unsigned int> indices, bool headless);
 
     void Draw(unsigned int shaderProgram) const;
     void Draw(unsigned int shaderProgram, glm::vec3 ballPosition, glm::vec3 cameraPosition);

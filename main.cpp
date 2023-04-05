@@ -6,16 +6,15 @@ using std::cout, std::endl;
 
 
 int main() {
-    Environment environment(800, 600, 100.0f, 1.0f, 5, false);
+    Environment environment(800, 600, 100.0f, 1.0f, 5, false, false);
     environment.Reset();
 
     int i = 0;
 
     while (!glfwWindowShouldClose(environment.window)) {
-        environment.Step(1.0f, 0.0f, true);
+        auto obs = environment.Step(1.0f, 0.0f);
 
         i++;
-        cout << i << endl;
         if (i > 350) {
             environment.Reset();
             i = 0;

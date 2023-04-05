@@ -16,7 +16,9 @@
 
 class Model {
 public:
-    explicit Model(const char *path) {
+    bool headless = false;
+
+    explicit Model(const char *path, bool headless = false) : headless(headless) {
         loadModel(path);
     }
     Model() = default;

@@ -4,12 +4,14 @@
 #include "Mesh.h"
 
 
-Mesh::Mesh(const std::string &name, std::vector<Vertex> vertices, std::vector<unsigned int> indices) {
+Mesh::Mesh(const std::string &name, std::vector<Vertex> vertices, std::vector<unsigned int> indices, bool headless) {
     this->name = name;
     this->vertices = std::move(vertices);
     this->indices = std::move(indices);
+    this->headless = headless;
 
-    setupMesh();
+    if (!headless)
+        setupMesh();
 }
 
 

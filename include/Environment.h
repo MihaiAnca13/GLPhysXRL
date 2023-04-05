@@ -45,6 +45,7 @@ public:
     float mBallDensity;
     int numSubsteps = 5;
     bool manualControl = false;
+    bool headless = false;
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
     glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
@@ -82,7 +83,7 @@ public:
     Sphere ballObject;
     Model obstacleScene;
 
-    Environment(int width, int height, float bounds, float ballDensity, int numSubsteps, bool manualControl) : mWidth(width), mHeight(height), mBounds(bounds), mBallDensity(ballDensity), numSubsteps(numSubsteps), manualControl(manualControl) {
+    Environment(int width, int height, float bounds, float ballDensity, int numSubsteps, bool manualControl, bool headless) : mWidth(width), mHeight(height), mBounds(bounds), mBallDensity(ballDensity), numSubsteps(numSubsteps), manualControl(manualControl), headless(headless) {
         Init();
     };
 
@@ -90,7 +91,7 @@ public:
 
     void StepPhysics();
 
-    Observation Step(float force, float angle, bool render = false);
+    Observation Step(float force, float angle);
 
     Observation Reset();
 

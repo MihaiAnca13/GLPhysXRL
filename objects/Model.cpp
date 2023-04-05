@@ -117,7 +117,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
             indices.push_back(face.mIndices[j]);
     }
 
-    return {name, vertices, indices};
+    return {name, vertices, indices, headless};
 }
 
 
