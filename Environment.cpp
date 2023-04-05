@@ -75,9 +75,9 @@ void Environment::Init() {
     ImGui_ImplOpenGL3_Init("#version 130");
 
     // Generates Shader object using shaders default.vert and default.frag
-    shaderProgram = Shader("default.vert", "default.frag");
-    shadowMapProgram = Shader("shadowMap.vert", "shadowMap.frag");
-    skyboxShader = Shader("skybox.vert", "skybox.frag");
+    shaderProgram = Shader("shaders/default.vert", "shaders/default.frag");
+    shadowMapProgram = Shader("shaders/shadowMap.vert", "shaders/shadowMap.frag");
+    skyboxShader = Shader("shaders/skybox.vert", "shaders/skybox.frag");
 
     float ballColors[3] = {0.2f, 0.5f, 0.8f};
     ballObject = Sphere(30, 30, ballRadius, ballColors);

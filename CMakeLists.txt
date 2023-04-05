@@ -20,17 +20,17 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 add_executable(c_ml
         main.cpp
-        glad.c
-        Camera.cpp
-        shaderClass.cpp
+        rendering/glad.c
+        rendering/Camera.cpp
+        rendering/shaderClass.cpp
         ${SOURCES}
-        Shadow.cpp
+        rendering/Shadow.cpp
         objects/Sphere.cpp
         objects/MyObjects.cpp
         objects/Table.cpp
-        Skybox.cpp
-        SpringArmCamera.cpp
-        UtilsAngles.cpp
+        rendering/Skybox.cpp
+        rendering/SpringArmCamera.cpp
+        utils/UtilsAngles.cpp
         objects/Mesh.cpp objects/Model.cpp Environment.cpp)
 
 # Add third party directory
@@ -41,12 +41,12 @@ include_directories(
         ./include
 )
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.frag ${CMAKE_CURRENT_BINARY_DIR}/default.frag COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/default.vert ${CMAKE_CURRENT_BINARY_DIR}/default.vert COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/skybox.frag ${CMAKE_CURRENT_BINARY_DIR}/skybox.frag COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/skybox.vert ${CMAKE_CURRENT_BINARY_DIR}/skybox.vert COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shadowMap.frag ${CMAKE_CURRENT_BINARY_DIR}/shadowMap.frag COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/shadowMap.vert ${CMAKE_CURRENT_BINARY_DIR}/shadowMap.vert COPYONLY)
+configure_file(shaders/default.frag ${CMAKE_CURRENT_BINARY_DIR}/shaders/default.frag COPYONLY)
+configure_file(shaders/default.vert ${CMAKE_CURRENT_BINARY_DIR}/shaders/default.vert COPYONLY)
+configure_file(shaders/skybox.frag ${CMAKE_CURRENT_BINARY_DIR}/shaders/skybox.frag COPYONLY)
+configure_file(shaders/skybox.vert ${CMAKE_CURRENT_BINARY_DIR}/shaders/skybox.vert COPYONLY)
+configure_file(shaders/shadowMap.frag ${CMAKE_CURRENT_BINARY_DIR}/shaders/shadowMap.frag COPYONLY)
+configure_file(shaders/shadowMap.vert ${CMAKE_CURRENT_BINARY_DIR}/shaders/shadowMap.vert COPYONLY)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/resources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(ALL_LIBS
