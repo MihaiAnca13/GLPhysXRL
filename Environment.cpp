@@ -155,17 +155,19 @@ Observation Environment::GetObservation() {
 }
 
 
-StepResult Environment::Step(float force, float rotation) {
-    // clamp force and rotation between -1 and 1
-    force = std::clamp(-force, -1.0f, 1.0f) * maxForce;
-    rotation = std::clamp(rotation, -1.0f, 1.0f);
+StepResult Environment::Step(const Tensor& action) {
+    // clamp action between -1 and 1
+    Tensor force = torch::clamp(action[0], -1.0f, 1.0f) * maxForce;
+    Tensor rotation = torch::clamp(action[1], -1.0f, 1.0f);
 
     if (!manualControl) {
         // update angle using sensitivity
-        angle += rotation * sensitivity;
+        angle += rotation.item<float>() * sensitivity;
+
+        auto fForce = force.item<float>();
 
         // apply force at given angle
-        ball->addForce(PxVec3(force * cos(angle), 0.0f, force * sin(angle)), PxForceMode::eFORCE, true);
+        ball->addForce(PxVec3(fForce * cos(angle), 0.0f, fForce * sin(angle)), PxForceMode::eFORCE, true);
     }
 
     // 5 substeps

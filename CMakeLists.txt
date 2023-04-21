@@ -20,6 +20,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 add_executable(c_ml
         main.cpp
+#        playground.cpp
         rendering/glad.c
         rendering/Camera.cpp
         rendering/shaderClass.cpp
@@ -31,7 +32,10 @@ add_executable(c_ml
         rendering/Skybox.cpp
         rendering/SpringArmCamera.cpp
         utils/UtilsAngles.cpp
-        objects/Mesh.cpp objects/Model.cpp Environment.cpp)
+        objects/Mesh.cpp
+        objects/Model.cpp
+        Environment.cpp
+        Agent.cpp LinearNetwork.cpp)
 
 # Add third party directory
 add_subdirectory(libs)

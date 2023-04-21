@@ -22,9 +22,11 @@
 #include "Shadow.h"
 #include "Skybox.h"
 #include "Model.h"
+#include <torch/torch.h>
 
 using namespace std;
 using namespace physx;
+using namespace torch;
 
 typedef struct {
     int width;
@@ -44,7 +46,20 @@ typedef struct {
     PxVec3 ballPosition;
     PxVec3 ballVelocity;
     float direction;
+
+    Tensor toTensor() {
+        Tensor r = torch::zeros({7});
+        r[0] = ballPosition.x;
+        r[1] = ballPosition.y;
+        r[2] = ballPosition.z;
+        r[3] = ballVelocity.x;
+        r[4] = ballVelocity.y;
+        r[5] = ballVelocity.z;
+        r[6] = direction;
+        return r;
+    }
 } Observation;
+
 
 typedef struct {
     Observation observation;
@@ -127,7 +142,7 @@ public:
 
     void StepPhysics();
 
-    StepResult Step(float force, float angle);
+    StepResult Step(const Tensor& action);
 
     Observation Reset();
 

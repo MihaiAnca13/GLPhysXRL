@@ -10,6 +10,19 @@ struct Transition {
 };
 
 
+// GAE function for calculating the advantage
+std::vector<float> get_advantage(std::vector<float> rewards, std::vector<float> values, float gamma, float lambda) {
+    std::vector<float> advantages(rewards.size());
+    float prev_advantage = 0;
+    for (int i = rewards.size() - 1; i >= 0; --i) {
+        float delta = rewards[i] + gamma * values[i + 1] - values[i];
+        advantages[i] = delta + gamma * lambda * prev_advantage;
+        prev_advantage = advantages[i];
+    }
+    return advantages;
+}
+
+
 void TrainAgent() {
     // Define the PPO hyperparameters
     int num_epochs = 10;
@@ -26,7 +39,7 @@ void TrainAgent() {
 
     for (int epoch = 0; epoch < num_epochs; ++epoch) {
         // Collect data from the environment
-        std::vector <Transition> memory;
+        std::vector<Transition> memory;
         for (int step = 0; step < num_steps; ++step) {
             Action action = agent.act(env.get_state());
             State next_state;
@@ -47,15 +60,12 @@ void TrainAgent() {
             R = memory[i].reward + trainGamma * R;
             returns[i] = R;
         }
-        for (int i = 0; i < memory.size(); ++i) {
-            advantages[i] =
-                    returns[i] - agent.get_value(memory[i].state).item<float>();
-        }
+        advantages = get_advantage(returns, agent.get_values(memory), trainGamma, 0.95);
 
         // Update the agent using PPO
         for (int i = 0; i < num_steps / mini_batch_size; ++i) {
             // Sample a mini-batch of transitions
-            std::vector <Transition> mini_batch(mini_batch_size);
+            std::vector<Transition> mini_batch(mini_batch_size);
             for (int j = 0; j < mini_batch_size; j++) {
                 int idx = rand() % memory.size();
                 mini_batch[j] = memory[idx];
