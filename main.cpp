@@ -1,12 +1,15 @@
 #include "Agent.h"
 #include "Environment.h"
 #include <iostream>
+#include <cstdlib>
 
 
 using std::cout, std::endl;
 
 
 int main() {
+    srand(time(NULL));
+
     Config config{.width = 800,
                   .height = 600,
                   .bounds = 100.0f,
