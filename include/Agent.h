@@ -36,11 +36,9 @@ public:
     float learning_rate = 1e-3;
     float clip_param = 0.2;
     float value_loss_coef = 0.5;
-    float entropy_coef = 0.01;
     float gamma = 0.9;
     float tau = 0.95;
     float reward_multiplier = 0.01;
-    float epsilon = 1e-5;
     float last_loss = 0.0f;
 
     std::vector<Transition> memory;
@@ -60,16 +58,15 @@ public:
     Tensor get_value(Tensor observation);
 
     // GAE function for calculating the advantage
-    [[nodiscard]] Tensor get_advantage(const Tensor &returns, const Tensor &values, const Tensor &dones) const;
+    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones) const;
 
     static Tensor log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
-//    Action act(Observation observation);
-//
-//    void save_model();
-//
-//    void load_model();
+    int PlayOne(Environment *env);
+    void ComputeAdvantage();
 
+private:
+    Tensor _obs;
 };
 
 #endif //C_ML_AGENT_H
