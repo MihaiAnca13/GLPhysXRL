@@ -28,6 +28,20 @@ void Model::addActorsToScene(physx::PxPhysics *physics, physx::PxCooking *cookin
         physx::PxTriangleMeshGeometry geometry(worldSceneTriangleMesh);
         // Create and attach a shape
         physx::PxRigidActorExt::createExclusiveShape(*worldActor, geometry, *material);
+
+        // Set collision filtering data for all shapes of the world actor to collide with all shapes of the previous actors
+        physx::PxU32 numWorldShapes = worldActor->getNbShapes();
+        for (physx::PxU32 i = 0; i < numWorldShapes; i++) {
+            physx::PxShape* worldShape = nullptr;
+            worldActor->getShapes(&worldShape, 1, i);
+            if (worldShape != nullptr) {
+                physx::PxFilterData filterData;
+                filterData.word0 = 0; // world actor
+                filterData.word1 = 0; // unique collision id for world actor
+                worldShape->setSimulationFilterData(filterData);
+            }
+        }
+
         // Add the actor to the scene
         scene->addActor(*worldActor);
     }

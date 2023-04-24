@@ -7,6 +7,56 @@ PxDefaultAllocator Environment::mallocator;
 PxDefaultErrorCallback Environment::merrorCallback;
 
 
+PxFilterFlags MyFilterShader(
+        PxFilterObjectAttributes attributes0, PxFilterData filterData0,
+        PxFilterObjectAttributes attributes1, PxFilterData filterData1,
+        PxPairFlags& pairFlags, const void* constantBlock, PxU32 constantBlockSize)
+{
+    // let triggers through
+    if(PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1))
+    {
+        pairFlags = PxPairFlag::eTRIGGER_DEFAULT;
+        return PxFilterFlag::eDEFAULT;
+    }
+
+    // generate contacts for all that were not filtered above
+    pairFlags = PxPairFlag::eCONTACT_DEFAULT;
+
+    // trigger the contact callback for pairs (A,B) where
+    // the filtermask of A contains the ID of B and vice versa.
+    if((filterData0.word0 & filterData1.word1) && (filterData1.word0 & filterData0.word1))
+        pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND;
+
+    // trigger a separation callback for pairs (A,B) where the collision group of A is included in the filtermask of B
+    if(filterData0.word0 & filterData1.word1) {
+        return PxFilterFlag::eKILL;
+    }
+
+    return PxFilterFlag::eDEFAULT;
+}
+
+
+Environment::Environment(EnvConfig config) {
+    mWidth = config.width;
+    mHeight = config.height;
+    mBounds = config.bounds;
+    mBallDensity = config.ballDensity;
+    numSubsteps = config.numSubsteps;
+    manualControl = config.manualControl;
+    headless = config.headless;
+    maxSteps = config.maxSteps;
+    threshold = config.threshold;
+    bonusAchievedReward = config.bonusAchievedReward;
+    num_envs = config.num_envs;
+
+    ballRotation.reserve(num_envs);
+    ballPosition.reserve(num_envs);
+    angle.reserve(num_envs);
+
+    Init();
+};
+
+
 void Environment::Init() {
     // assert headless is true if manualControl is true, but allow for both to be false
     assert(!manualControl || headless);
@@ -19,7 +69,7 @@ void Environment::Init() {
     sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
     gDispatcher = PxDefaultCpuDispatcherCreate(2);
     sceneDesc.cpuDispatcher = gDispatcher;
-    sceneDesc.filterShader = PxDefaultSimulationFilterShader;
+    sceneDesc.filterShader = MyFilterShader; //PxDefaultSimulationFilterShader;
     PxCookingParams params(physics->getTolerancesScale());
     cooking = PxCreateCooking(PX_PHYSICS_VERSION, *foundation, params);
     scene = physics->createScene(sceneDesc);
@@ -27,15 +77,40 @@ void Environment::Init() {
     PxMaterial *material = physics->createMaterial(0.5f, 0.5f, 0.1f);
     PxTransform ballTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity));
     PxSphereGeometry ballGeometry(ballRadius / 4);
-    ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, mBallDensity);
-    ball->setAngularDamping(3.0f);
-    scene->addActor(*ball);
+
+    balls.reserve(num_envs);
+    for (int i = 0; i < num_envs; i++) {
+        auto ball = PxCreateDynamic(*physics, ballTransform, ballGeometry, *material, mBallDensity);
+        ball->userData = new ActorUserData("ball" + std::to_string(i));
+        ball->setAngularDamping(3.0f);
+
+        // set collision filter data
+        PxU32 numShapes = ball->getNbShapes();
+        for (PxU32 j = 0; j < numShapes; j++) {
+            PxShape *shape = nullptr;
+            ball->getShapes(&shape, 1, j);
+            if (shape != nullptr) {
+                PxFilterData filterData;
+                filterData.word0 = 1 << i;
+                filterData.word1 =  ~(1 << i);
+                shape->setSimulationFilterData(filterData);
+            }
+        }
+
+        scene->addActor(*ball);
+        balls.push_back(ball);
+    }
 
     if (headless) {
         obstacleScene = Model("resources/scene.obj", headless);
 
         obstacleScene.addActorsToScene(physics, cooking, scene, material);
-        physx::PxRigidBodyExt::updateMassAndInertia(*ball, mBallDensity);
+
+        // update mass and interia for all balls
+        for (auto ball: balls) {
+            physx::PxRigidBodyExt::updateMassAndInertia(*ball, mBallDensity);
+        }
+
         return;
     }
 
@@ -84,7 +159,11 @@ void Environment::Init() {
     obstacleScene = Model("resources/scene.obj");
 
     obstacleScene.addActorsToScene(physics, cooking, scene, material);
-    physx::PxRigidBodyExt::updateMassAndInertia(*ball, mBallDensity);
+
+    // update mass and interia for all balls
+    for (auto ball: balls) {
+        physx::PxRigidBodyExt::updateMassAndInertia(*ball, mBallDensity);
+    }
 
     // Enables Depth Testing
     glEnable(GL_DEPTH_TEST);
@@ -133,16 +212,22 @@ void Environment::StepPhysics() {
     scene->simulate(1.0f / 60.0f);
     scene->fetchResults(true);
 
-    ballPosition = ball->getGlobalPose().p;
-    ballRotation = ball->getGlobalPose().q;
+    // update balls position
+    for (int i = 0; i < num_envs; i++) {
+        ballPosition[i] = balls[i]->getGlobalPose().p;
+        ballRotation[i] = balls[i]->getGlobalPose().q;
+    }
 }
 
 
-Observation Environment::Reset() {
-    ball->setLinearVelocity(PxVec3(0.0f, 0.0f, 0.0f));
-    ball->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
-    ball->setGlobalPose(PxTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity)));
-    angle = 0.0f;
+Tensor Environment::Reset() {
+    // reset balls position
+    for (int i = 0; i < num_envs; i++) {
+        balls[i]->setLinearVelocity(PxVec3(0.0f, 0.0f, 0.0f));
+        balls[i]->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
+        balls[i]->setGlobalPose(PxTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity)));
+        angle[i] = 0.0f;
+    }
     _step = 0;
     springArmCamera = SpringArmCamera(mWidth, mHeight, initialBallPos + glm::vec3(3.0f, 1.0f, 0.0f), initialBallPos);
     StepPhysics();
@@ -150,24 +235,43 @@ Observation Environment::Reset() {
 }
 
 
-Observation Environment::GetObservation() {
-    return {ballPosition, ballPosition, angle};
+Tensor Environment::GetObservation() {
+    // create a tensor with shape {numBalls, 7}
+    Tensor observation = torch::zeros({num_envs, 7}, torch::kFloat32);
+
+    // fill it with ballPosition, ballRotation and angle
+    for (int i = 0; i < num_envs; i++) {
+        observation[i][0] = ballPosition[i].x;
+        observation[i][1] = ballPosition[i].y;
+        observation[i][2] = ballPosition[i].z;
+        observation[i][3] = ballRotation[i].x;
+        observation[i][4] = ballRotation[i].y;
+        observation[i][5] = ballRotation[i].z;
+        observation[i][6] = angle[i];
+    }
+
+    return observation;
 }
 
 
-StepResult Environment::Step(const Tensor& action) {
-    // clamp action between -1 and 1
-    Tensor force = torch::clamp(action[0], -1.0f, 1.0f) * maxForce;
-    Tensor rotation = torch::clamp(action[1], -1.0f, 1.0f);
+StepResult Environment::Step(const Tensor &action) {
+    // assert the shape of action is {numBalls, 2}
+    assert(action.sizes() == torch::IntArrayRef({num_envs, 2}));
 
-    if (!manualControl) {
-        // update angle using sensitivity
-        angle += rotation.item<float>() * sensitivity;
+    for (int i = 0; i < num_envs; i++) {
+        // clamp action between -1 and 1
+        Tensor force = torch::clamp(action[i][0], -1.0f, 1.0f) * maxForce;
+        Tensor rotation = torch::clamp(action[i][1], -1.0f, 1.0f);
 
-        auto fForce = force.item<float>();
+        if (!manualControl) {
+            // update angle using sensitivity
+            angle[i] += rotation.item<float>() * sensitivity;
 
-        // apply force at given angle
-        ball->addForce(PxVec3(fForce * cos(angle), 0.0f, fForce * sin(angle)), PxForceMode::eFORCE, true);
+            auto fForce = force.item<float>();
+
+            // apply force at given angle
+            balls[i]->addForce(PxVec3(fForce * cos(angle[i]), 0.0f, fForce * sin(angle[i])), PxForceMode::eFORCE, true);
+        }
     }
 
     // 5 substeps
@@ -180,13 +284,16 @@ StepResult Environment::Step(const Tensor& action) {
         }
     }
 
-    // check if ball position is out of bounds in PhysX
-    if (ballPosition.x > mBounds || ballPosition.x < -mBounds || ballPosition.y > mBounds || ballPosition.y < -mBounds || ballPosition.z > mBounds || ballPosition.z < -mBounds) {
-        // clamp ball position to bounds
-        ballPosition.x = std::clamp(ballPosition.x, -mBounds, mBounds);
-        ballPosition.y = std::clamp(ballPosition.y, -mBounds, mBounds);
-        ballPosition.z = std::clamp(ballPosition.z, -mBounds, mBounds);
-        ball->setGlobalPose(PxTransform(PxVec3(ballPosition.x, ballPosition.y, ballPosition.z), ballRotation), true);
+    for (int i = 0; i < num_envs; i++) {
+        auto pos = ballPosition[i];
+        // check if ball position is out of bounds in PhysX
+        if (pos.x > mBounds || pos.x < -mBounds || pos.y > mBounds || pos.y < -mBounds || pos.z > mBounds || pos.z < -mBounds) {
+            // clamp ball position to bounds
+            pos.x = std::clamp(pos.x, -mBounds, mBounds);
+            pos.y = std::clamp(pos.y, -mBounds, mBounds);
+            pos.z = std::clamp(pos.z, -mBounds, mBounds);
+            balls[i]->setGlobalPose(PxTransform(PxVec3(pos.x, pos.y, pos.z), ballRotation[i]), true);
+        }
     }
 
     _step++;
@@ -196,7 +303,9 @@ StepResult Environment::Step(const Tensor& action) {
         done = true;
     }
 
-    return {GetObservation(), ComputeReward(), done};
+    auto done_tensor = torch::ones({num_envs}, torch::kFloat32) * done;
+
+    return {GetObservation(), ComputeReward(), done_tensor};
 }
 
 
@@ -216,7 +325,9 @@ void Environment::Render() {
 
     ImGui::Render();
 
-    glmBallP = glm::vec3(ballPosition.x, ballPosition.y, ballPosition.z);
+    if (springCamera) {
+        glmBallP = glm::vec3(ballPosition[0].x, ballPosition[0].y, ballPosition[0].z);
+    }
 
     // Depth testing needed for Shadow Map
     glEnable(GL_DEPTH_TEST);
@@ -229,8 +340,10 @@ void Environment::Render() {
 
     glCullFace(GL_FRONT);
 
-    // render ball
-    ballObject.Draw(shadowMapProgram.ID, ballPosition, ballRotation);
+    // render balls
+    for (int i = 0; i < num_envs; i++) {
+        ballObject.Draw(shadowMapProgram.ID, ballPosition[i], ballRotation[i]);
+    }
 
     // render scene
     obstacleScene.Draw(shadowMapProgram.ID);
@@ -251,11 +364,10 @@ void Environment::Render() {
     // Updates and exports the camera matrix to the Vertex Shader
     if (springCamera) {
         if (manualControl) {
-            springArmCamera.Inputs(window, ball);
-            angle = springArmCamera.angle;
-        }
-        else {
-            springArmCamera.angle = angle;
+            springArmCamera.Inputs(window, balls[0]);
+            angle[0] = springArmCamera.angle;
+        } else {
+            springArmCamera.angle = angle[0];
         }
 
         springArmCamera.Matrix(glmBallP, 45.0f, 1.6f, 100.0f, shaderProgram, "camMatrix");
@@ -279,9 +391,11 @@ void Environment::Render() {
         obstacleScene.Draw(shaderProgram.ID);
     }
 
-    // render ball
+    // render balls
     glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
-    ballObject.Draw(shaderProgram.ID, ballPosition, ballRotation);
+    for (int i = 0; i < num_envs; i++) {
+        ballObject.Draw(shaderProgram.ID, ballPosition[i], ballRotation[i]);
+    }
 
     // Since the cubemap will always have a depth of 1.0, we need that equal sign so it doesn't get discarded
     glDepthFunc(GL_LEQUAL);
@@ -335,18 +449,23 @@ void Environment::CleanUp() {
 }
 
 
-double Environment::ComputeReward() {
-    // compute reward as mean squared error between goal and ball position
-    double dist = 0.0f;
-    for (int i = 0; i < 3; i++) {
-        dist += pow(goalPosition[i] - ballPosition[i], 2);
-    }
-    dist = dist / 3.0f;
+Tensor Environment::ComputeReward() {
+    // initialize reward as a tensor of size num_envs
+    Tensor reward = torch::zeros({num_envs}, torch::kFloat32);
 
-    double reward = -dist;
-    // if within threshold of target, add bonus reward
-    if (dist < threshold) {
-        reward += bonusAchievedReward;
+    // compute reward as mean squared error between goal and ball position
+    for (int i = 0; i < num_envs; i++) {
+        double dist = 0.0f;
+        for (int j = 0; j < 3; j++) {
+            dist += pow(goalPosition[j] - ballPosition[i][j], 2);
+        }
+        dist = dist / 3.0f;
+
+        reward[i] = -dist;
+        // if within threshold of target, add bonus reward
+        if (dist < threshold) {
+            reward[i] += bonusAchievedReward;
+        }
     }
 
     return reward;

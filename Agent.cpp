@@ -5,7 +5,18 @@
 #include <utility>
 
 
-Agent::Agent() : net(Network(7, 2)), optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
+Agent::Agent(AgentConfig config) : net(Network(7, 2)), optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
+    //loading the config
+    num_epochs = config.num_epochs;
+    horizon_length = config.horizon_length;
+    mini_batch_size = config.mini_batch_size;
+    learning_rate = config.learning_rate;
+    clip_param = config.clip_param;
+    value_loss_coef = config.value_loss_coef;
+    gamma = config.gamma;
+    tau = config.tau;
+    reward_multiplier = config.reward_multiplier;
+
     net->to(device);
     net->train();
     memory.reserve(horizon_length);
@@ -13,7 +24,7 @@ Agent::Agent() : net(Network(7, 2)), optimizer(net->parameters(), torch::optim::
 
 
 void Agent::Train(Environment *env) {
-    _obs = env->Reset().toTensor();
+    _obs = env->Reset();
 
     for (int epoch = 0; epoch < num_epochs; ++epoch) {
         int num_steps = PlayOne(env);
@@ -83,23 +94,22 @@ int Agent::PlayOne(Environment *env) {
 
         // clamping takes place in the environment
         auto envStep = env->Step(action);
-        Tensor reward = torch::tensor(envStep.reward * reward_multiplier, floatOptions);
-        Tensor next_obs = envStep.observation.toTensor();
-        Tensor done = torch::tensor(envStep.done, floatOptions);
+        Tensor reward = envStep.reward * reward_multiplier;
+        Tensor next_obs = envStep.observation;
 
         Transition transition = {_obs,
                                  action,
                                  reward,
                                  next_obs,
-                                 done,
+                                 envStep.done,
                                  get_value(next_obs),
                                  old_log_prob,
                                  torch::zeros({1}, floatOptions),
                                  torch::zeros({1}, floatOptions)};
         memory.push_back(transition);
         _obs = next_obs;
-        if (envStep.done) {
-            _obs = env->Reset().toTensor();
+        if (envStep.done[0].item<float>() == 1.0f) {
+            _obs = env->Reset();
         }
         num_steps++;
     }

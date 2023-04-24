@@ -39,32 +39,14 @@ typedef struct {
     int maxSteps;
     float threshold;
     float bonusAchievedReward;
-} Config;
+    int num_envs;
+} EnvConfig;
 
 
 typedef struct {
-    PxVec3 ballPosition;
-    PxVec3 ballVelocity;
-    float direction;
-
-    Tensor toTensor() {
-        Tensor r = torch::zeros({7});
-        r[0] = ballPosition.x;
-        r[1] = ballPosition.y;
-        r[2] = ballPosition.z;
-        r[3] = ballVelocity.x;
-        r[4] = ballVelocity.y;
-        r[5] = ballVelocity.z;
-        r[6] = direction;
-        return r;
-    }
-} Observation;
-
-
-typedef struct {
-    Observation observation;
-    double reward;
-    bool done;
+    Tensor observation;
+    Tensor reward;
+    Tensor done;
 } StepResult;
 
 
@@ -83,6 +65,7 @@ public:
     int maxSteps = 100;
     float threshold = 0.03f;
     float bonusAchievedReward = 10.0f;
+    int num_envs = 1;
 
     int _step = 0;
 
@@ -90,10 +73,10 @@ public:
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
     glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
-    PxQuat ballRotation;
-    PxVec3 ballPosition;
+    std::vector<PxQuat> ballRotation;
+    std::vector<PxVec3> ballPosition;
 
-    float angle = 0.0f;
+    std::vector<float> angle;
     float sensitivity = 0.0174533f * 2.0f; // 2 degrees
     float maxForce = 0.375f;
 
@@ -119,40 +102,39 @@ public:
     PxPhysics *physics;
     PxDefaultCpuDispatcher *gDispatcher;
 
-    PxRigidDynamic *ball;
+    std::vector<PxRigidDynamic *> balls;
 
     Sphere ballObject;
     Model obstacleScene;
 
-    Environment(Config config) {
-        mWidth = config.width;
-        mHeight = config.height;
-        mBounds = config.bounds;
-        mBallDensity = config.ballDensity;
-        numSubsteps = config.numSubsteps;
-        manualControl = config.manualControl;
-        headless = config.headless;
-        maxSteps = config.maxSteps;
-        threshold = config.threshold;
-        bonusAchievedReward = config.bonusAchievedReward;
-        Init();
-    };
+    Environment(EnvConfig config);
 
     void CleanUp();
 
     void StepPhysics();
 
-    StepResult Step(const Tensor& action);
+    StepResult Step(const Tensor &action);
 
-    Observation Reset();
+    Tensor Reset();
 
-    Observation GetObservation();
+    Tensor GetObservation();
 
-    double ComputeReward();
+    Tensor ComputeReward();
 
     void Render();
 
     void Init();
+};
+
+
+class ActorUserData {
+public:
+    ActorUserData(const std::string &name) : m_name(name) {}
+
+    const std::string &getName() const { return m_name; }
+
+private:
+    std::string m_name;
 };
 
 #endif //C_ML_ENVIRONMENT_H

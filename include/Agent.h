@@ -28,8 +28,22 @@ typedef struct {
 } Transition;
 
 
+typedef struct {
+    int num_epochs;
+    int horizon_length;
+    int mini_batch_size;
+    float learning_rate;
+    float clip_param;
+    float value_loss_coef;
+    float gamma;
+    float tau;
+    float reward_multiplier;
+} AgentConfig;
+
+
 class Agent {
 public:
+    // config parameters
     int num_epochs = 10;
     int horizon_length = 16;
     int mini_batch_size = 2;
@@ -39,6 +53,7 @@ public:
     float gamma = 0.9;
     float tau = 0.95;
     float reward_multiplier = 0.01;
+
     float last_loss = 0.0f;
 
     std::vector<Transition> memory;
@@ -48,7 +63,7 @@ public:
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
     TensorOptions boolOptions = torch::TensorOptions().dtype(torch::kBool).device(device).layout(torch::kStrided).requires_grad(false);
 
-    Agent();
+    Agent(AgentConfig config);
 
     Network net;
     optim::AdamW optimizer;

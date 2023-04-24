@@ -19,6 +19,5 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- write RL agent/model
-- curriculum learning
-- train loop!
+- add parallel envs
+- use gpu
