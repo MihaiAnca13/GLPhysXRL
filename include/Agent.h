@@ -56,6 +56,9 @@ public:
 
     float last_loss = 0.0f;
 
+    int obs_size = 7;
+    int action_size = 2;
+
     std::vector<Transition> memory;
     DeviceType device = torch::kCPU;
 
@@ -63,17 +66,20 @@ public:
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
     TensorOptions boolOptions = torch::TensorOptions().dtype(torch::kBool).device(device).layout(torch::kStrided).requires_grad(false);
 
-    Agent(AgentConfig config);
+    Agent(AgentConfig config, Environment *env);
 
     Network net;
     optim::AdamW optimizer;
 
-    void Train(Environment *env);
+    Environment* env;
+    int num_envs = 1;
+
+    void Train();
 
     Tensor get_value(Tensor observation);
 
     // GAE function for calculating the advantage
-    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones) const;
+    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values) const;
 
     static Tensor log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 

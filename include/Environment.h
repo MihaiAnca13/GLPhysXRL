@@ -67,6 +67,9 @@ public:
     float bonusAchievedReward = 10.0f;
     int num_envs = 1;
 
+    int observation_size = 7;
+    int action_size = 2;
+
     int _step = 0;
 
     PxVec3 goalPosition = PxVec3(-6.61703f, 1.31621f, -1.71782f);

@@ -19,5 +19,6 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- add parallel envs
 - use gpu
+- train!
+- remove sigma from the network
