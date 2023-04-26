@@ -62,6 +62,13 @@ void Agent::Train() {
                 returns[j] = memory[idx1].returns[idx2];
             }
 
+            {
+                // no grads
+                torch::NoGradGuard no_grad;
+                // normalize advantages
+                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8);
+            }
+
             // Compute the surrogate loss and the value loss
             auto net_output = net->forward(obs);
             auto new_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));

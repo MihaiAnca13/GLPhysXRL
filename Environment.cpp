@@ -29,7 +29,8 @@ PxFilterFlags MyFilterShader(
         pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND;
 
     // trigger a separation callback for pairs (A,B) where the collision group of A is included in the filtermask of B
-    if(filterData0.word0 & filterData1.word1) {
+    // same if filterData0 is the same as filterData1
+    if(filterData0.word0 & filterData1.word1 || (filterData0.word1 == filterData1.word1 && filterData0.word0 == filterData1.word0)) {
         return PxFilterFlag::eKILL;
     }
 
@@ -255,24 +256,18 @@ Tensor Environment::GetObservation() {
         cudaMemcpy(buffer + 3, &ballRotation[i].x, sizeof(float) * 4, cudaMemcpyHostToDevice);
         cudaMemcpy(buffer + 7, &angle[i], sizeof(float), cudaMemcpyHostToDevice);
 
+        // normalizing values
+        buffer[0] = buffer[0] / 15.0f;
+        buffer[1] = buffer[1] / 5.0f;
+        buffer[2] = buffer[2] / 10.0f;
+        buffer[7] = buffer[7] / PxPi;
+
         // create a tensor from the GPU buffer
         Tensor observation_tensor = torch::from_blob(buffer, {observation_size}, floatOptions);
         observation[i] = observation_tensor;
 
         cudaFree(buffer);
     }
-
-    // fill it with ballPosition, ballRotation and angle
-//    for (int i = 0; i < num_envs; i++) {
-//        observation[i][0] = ballPosition[i].x;
-//        observation[i][1] = ballPosition[i].y;
-//        observation[i][2] = ballPosition[i].z;
-//        observation[i][3] = ballRotation[i].x;
-//        observation[i][4] = ballRotation[i].y;
-//        observation[i][5] = ballRotation[i].z;
-//        observation[i][6] = ballRotation[i].z;
-//        observation[i][7] = angle[i];
-//    }
 
     return observation;
 }
@@ -290,6 +285,8 @@ StepResult Environment::Step(const Tensor &action) {
         if (!manualControl) {
             // update angle using sensitivity
             angle[i] += rotation.item<float>() * sensitivity;
+            // Wrap angle between -PI and PI
+            angle[i] = (float) UtilsAngles::WrapPosNegPI(angle[i]);
 
             auto fForce = force.item<float>();
 
@@ -480,19 +477,19 @@ void Environment::CleanUp() {
 
 Tensor Environment::ComputeReward() {
     // initialize reward as a tensor of size num_envs
-    Tensor reward = torch::zeros({num_envs}, torch::kFloat32);
+    Tensor reward = torch::zeros({num_envs}, floatOptions);
 
-    // compute reward as mean squared error between goal and ball position
+    // calculate the reward as the euclidean distance between the ball and the goal and then apply the hyperbolic tangent. the reward is higher when the ball is closer to the goal
     for (int i = 0; i < num_envs; i++) {
-        double dist = 0.0f;
-        for (int j = 0; j < 3; j++) {
-            dist += pow(goalPosition[j] - ballPosition[i][j], 2);
-        }
-        dist = dist / 3.0f;
+        float distance = std::sqrt(std::pow(ballPosition[i].x - goalPosition.x, 2) +
+                                   std::pow(ballPosition[i].y - goalPosition.y, 2) +
+                                   std::pow(ballPosition[i].z - goalPosition.z, 2));
 
-        reward[i] = -dist;
+        // max distance is 25.0, so reward is between -1 and 1
+        reward[i] = -distance / 25.0f;
+
         // if within threshold of target, add bonus reward
-        if (dist < threshold) {
+        if (distance < threshold) {
             reward[i] += bonusAchievedReward;
         }
     }
