@@ -2,30 +2,33 @@
 #include "Environment.h"
 #include <iostream>
 #include <cstdlib>
+#include <cuda_runtime.h>
 
 
 using std::cout, std::endl;
 
 
 int main() {
+    cudaSetDevice(0);
+
     srand(time(NULL));
 
     EnvConfig envConfig{.width = 800,
                   .height = 600,
                   .bounds = 100.0f,
                   .ballDensity = 1.0f,
-                  .numSubsteps =5 ,
+                  .numSubsteps = 5,
                   .manualControl = false,
-                  .headless = true,
+                  .headless = false,
                   .maxSteps = 1024,
                   .threshold = 0.03f,
                   .bonusAchievedReward = 10.0f,
-                  .num_envs = 2
+                  .num_envs = 12
     };
 
-    AgentConfig agentConfig{.num_epochs = 10,
-                            .horizon_length = 16,
-                            .mini_batch_size = 2,
+    AgentConfig agentConfig{.num_epochs = 1000,
+                            .horizon_length = 32,
+                            .mini_batch_size = 192,
                             .learning_rate = 1e-3,
                             .clip_param = 0.2,
                             .value_loss_coef = 0.5,

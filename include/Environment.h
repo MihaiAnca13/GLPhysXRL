@@ -67,8 +67,11 @@ public:
     float bonusAchievedReward = 10.0f;
     int num_envs = 1;
 
-    int observation_size = 7;
+    int observation_size = 8;
     int action_size = 2;
+
+    bool toRender = true;
+    bool Vpressed = false;
 
     int _step = 0;
 
@@ -104,8 +107,11 @@ public:
     PxCooking *cooking;
     PxPhysics *physics;
     PxDefaultCpuDispatcher *gDispatcher;
+    PxCudaContextManager *gCudaContextManager;
 
     std::vector<PxRigidDynamic *> balls;
+
+    TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(kCUDA).layout(torch::kStrided).requires_grad(false);
 
     Sphere ballObject;
     Model obstacleScene;
@@ -115,6 +121,8 @@ public:
     void CleanUp();
 
     void StepPhysics();
+
+    void Inputs();
 
     StepResult Step(const Tensor &action);
 

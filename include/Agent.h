@@ -60,7 +60,7 @@ public:
     int action_size = 2;
 
     std::vector<Transition> memory;
-    DeviceType device = torch::kCPU;
+    DeviceType device = torch::kCUDA;
 
     TensorOptions lossOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(true);
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);

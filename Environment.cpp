@@ -1,6 +1,7 @@
 //
 // Created by mihai on 31/03/23.
 //
+#include <cuda_runtime.h>
 #include "Environment.h"
 
 PxDefaultAllocator Environment::mallocator;
@@ -63,13 +64,18 @@ void Environment::Init() {
 
     // PhysX simulation
     foundation = PxCreateFoundation(PX_PHYSICS_VERSION, mallocator, merrorCallback);
-
+//    PxCudaContextManagerDesc cudaContextManagerDesc;
+//    gCudaContextManager = PxCreateCudaContextManager(*foundation, cudaContextManagerDesc, PxGetProfilerCallback());
     physics = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation, PxTolerancesScale());
     PxSceneDesc sceneDesc(physics->getTolerancesScale());
     sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
     gDispatcher = PxDefaultCpuDispatcherCreate(2);
     sceneDesc.cpuDispatcher = gDispatcher;
     sceneDesc.filterShader = MyFilterShader; //PxDefaultSimulationFilterShader;
+//    sceneDesc.cudaContextManager = gCudaContextManager;
+//    sceneDesc.flags |= PxSceneFlag::eENABLE_CCD;
+//    sceneDesc.gpuMaxNumPartitions = 8;
+//    sceneDesc.broadPhaseType = PxBroadPhaseType::eGPU;
     PxCookingParams params(physics->getTolerancesScale());
     cooking = PxCreateCooking(PX_PHYSICS_VERSION, *foundation, params);
     scene = physics->createScene(sceneDesc);
@@ -236,19 +242,37 @@ Tensor Environment::Reset() {
 
 
 Tensor Environment::GetObservation() {
-    // create a tensor with shape {numBalls, 7}
-    Tensor observation = torch::zeros({num_envs, 7}, torch::kFloat32);
+    // create a tensor with shape {numBalls, observation_size}
+    Tensor observation = torch::zeros({num_envs, observation_size}, floatOptions);
+
+    for (int i = 0; i < num_envs; i++) {
+        // create a GPU buffer for the data
+        float *buffer;
+        cudaMallocManaged(&buffer, observation_size * sizeof(float));
+
+        // copy the data from CPU to GPU
+        cudaMemcpy(buffer, &ballPosition[i].x, sizeof(float) * 3, cudaMemcpyHostToDevice);
+        cudaMemcpy(buffer + 3, &ballRotation[i].x, sizeof(float) * 4, cudaMemcpyHostToDevice);
+        cudaMemcpy(buffer + 7, &angle[i], sizeof(float), cudaMemcpyHostToDevice);
+
+        // create a tensor from the GPU buffer
+        Tensor observation_tensor = torch::from_blob(buffer, {observation_size}, floatOptions);
+        observation[i] = observation_tensor;
+
+        cudaFree(buffer);
+    }
 
     // fill it with ballPosition, ballRotation and angle
-    for (int i = 0; i < num_envs; i++) {
-        observation[i][0] = ballPosition[i].x;
-        observation[i][1] = ballPosition[i].y;
-        observation[i][2] = ballPosition[i].z;
-        observation[i][3] = ballRotation[i].x;
-        observation[i][4] = ballRotation[i].y;
-        observation[i][5] = ballRotation[i].z;
-        observation[i][6] = angle[i];
-    }
+//    for (int i = 0; i < num_envs; i++) {
+//        observation[i][0] = ballPosition[i].x;
+//        observation[i][1] = ballPosition[i].y;
+//        observation[i][2] = ballPosition[i].z;
+//        observation[i][3] = ballRotation[i].x;
+//        observation[i][4] = ballRotation[i].y;
+//        observation[i][5] = ballRotation[i].z;
+//        observation[i][6] = ballRotation[i].z;
+//        observation[i][7] = angle[i];
+//    }
 
     return observation;
 }
@@ -280,7 +304,11 @@ StepResult Environment::Step(const Tensor &action) {
         StepPhysics();
         // render
         if (!headless) {
-            Render();
+            Inputs();
+            if (toRender)
+                Render();
+            else
+                glfwPollEvents();
         }
     }
 
@@ -430,6 +458,7 @@ void Environment::CleanUp() {
     PX_RELEASE(gDispatcher);
     PxCloseExtensions();
     PX_RELEASE(physics);
+    PX_RELEASE(gCudaContextManager);
     PX_RELEASE(foundation);
 //    if(gPvd)
 //    {
@@ -469,4 +498,17 @@ Tensor Environment::ComputeReward() {
     }
 
     return reward;
+}
+
+
+void Environment::Inputs() {
+    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+        if (!Vpressed) {
+            toRender = !toRender;
+        }
+        Vpressed = true;
+    }
+    else {
+        Vpressed = false;
+    }
 }

@@ -5,6 +5,11 @@
 #include <utility>
 
 
+void sleep(int seconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(seconds * 1000));
+}
+
+
 Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environment->observation_size, environment->action_size)), optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
     //loading the config
     num_epochs = config.num_epochs;
@@ -35,6 +40,9 @@ void Agent::Train() {
         int num_steps = PlayOne(env);
         ComputeAdvantage();
 
+        // assert that num_envs * horizon_length is divisible by mini_batch_size
+        assert(num_envs * horizon_length % mini_batch_size == 0);
+
         // Update the agent using PPO
         for (int i = 0; i < num_steps / mini_batch_size; ++i) {
             // Sample a mini-batch of transitions and convert the required samples to tensors
@@ -57,7 +65,7 @@ void Agent::Train() {
             // Compute the surrogate loss and the value loss
             auto net_output = net->forward(obs);
             auto new_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
-            auto ratio = (new_log_prob - old_log_prob).exp();
+            auto ratio = (old_log_prob - new_log_prob).exp();
             auto surr1 = ratio * advantages;
             auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
             auto surrogate_loss = -torch::min(surr1, surr2);
@@ -99,6 +107,8 @@ int Agent::PlayOne(Environment *env) {
         auto net_output = net->forward(_obs);
         // convert from mu and sigma to action
         Tensor action = at::normal(net_output.mu, torch::ones_like(net_output.mu));
+        // clamp action between -1 and 1
+        action = torch::clamp(action, -1.0, 1.0);
 
         Tensor old_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
 
@@ -109,9 +119,9 @@ int Agent::PlayOne(Environment *env) {
 
         Transition transition = {_obs,
                                  action,
-                                 reward,
+                                 reward.to(device),
                                  next_obs,
-                                 envStep.done,
+                                 envStep.done.to(device),
                                  get_value(next_obs),
                                  old_log_prob,
                                  torch::zeros({1}, floatOptions),
@@ -121,7 +131,7 @@ int Agent::PlayOne(Environment *env) {
         if (envStep.done[0].item<float>() == 1.0f) {
             _obs = env->Reset();
         }
-        num_steps++;
+        num_steps += num_envs;
     }
     return num_steps;
 }
@@ -187,6 +197,6 @@ Tensor Agent::get_value(Tensor observation) {
 
 // Compute the log probability of an action given the mean and standard deviation
 Tensor Agent::log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma) {
-    auto log_prob = -0.5 * torch::pow((action - mu) / sigma, 2) - torch::log(sigma) - 0.5 * log(2 * M_PI);
-    return torch::sum(log_prob, -1);
+    auto log_prob = -0.5 * (action - mu).pow(2) / sigma.pow(2) - 0.5 * log(2 * M_PI) - torch::log(sigma);
+    return log_prob.sum(1, true);
 }
