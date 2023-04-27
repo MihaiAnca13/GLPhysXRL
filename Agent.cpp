@@ -81,6 +81,10 @@ void Agent::Train() {
             // calculate mean of surrogate_loss
             surrogate_loss = surrogate_loss.mean();
 
+            // log the loss
+            logger.add_scalar("Loss/actor_loss", epoch * num_steps / mini_batch_size + i, surrogate_loss.item<float>());
+            logger.add_scalar("Loss/critic_loss", epoch * num_steps / mini_batch_size + i, value_loss.item<float>());
+
             auto loss = surrogate_loss + value_loss_coef * value_loss;
 
             // Update the network
@@ -90,6 +94,7 @@ void Agent::Train() {
 
             // Print the loss
             std::cout << "Epoch: " << epoch << " " << i + 1 << "/" << (int) (num_steps / mini_batch_size) << " Loss: " << loss.item<float>() << std::endl;
+            logger.add_scalar("Info/epoch", epoch * num_steps / mini_batch_size + i, (float) epoch);
 
             if (i == 0 && epoch == 0) {
                 last_loss = loss.item<float>();

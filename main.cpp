@@ -18,8 +18,8 @@ int main() {
                   .bounds = 100.0f,
                   .ballDensity = 1.0f,
                   .numSubsteps = 5,
-                  .manualControl = true,
-                  .headless = false,
+                  .manualControl = false,
+                  .headless = true,
                   .maxSteps = 1024,
                   .threshold = 0.03f,
                   .bonusAchievedReward = 10.0f,
@@ -28,7 +28,7 @@ int main() {
 
     AgentConfig agentConfig{.num_epochs = 1000,
                             .horizon_length = 32,
-                            .mini_batch_size = 2048,
+                            .mini_batch_size = 192,
                             .learning_rate = 1e-3,
                             .clip_param = 0.2,
                             .value_loss_coef = 0.5,
@@ -42,20 +42,20 @@ int main() {
 
     Agent agent = Agent(agentConfig, &environment);
 
-//    agent.Train();
+    agent.Train();
 
-    auto action = torch::zeros({envConfig.num_envs, 2}, torch::TensorOptions().dtype(torch::kFloat32));
-    while (!glfwWindowShouldClose(environment.window)) {
-        auto stepRes = environment.Step(action);
-
-        cout << "reward: " << stepRes.reward << endl;
-//        auto obs = stepRes.observation;
-//        cout << "ball pos: " << obs[0][0] << ", " << obs[0][1] << ", " << obs[0][2] << endl;
-
-        if (stepRes.done[0].item<bool>()) {
-            environment.Reset();
-        }
-    }
+//    auto action = torch::zeros({envConfig.num_envs, 2}, torch::TensorOptions().dtype(torch::kFloat32));
+//    while (!glfwWindowShouldClose(environment.window)) {
+//        auto stepRes = environment.Step(action);
+//
+//        cout << "reward: " << stepRes.reward << endl;
+////        auto obs = stepRes.observation;
+////        cout << "ball pos: " << obs[0][0] << ", " << obs[0][1] << ", " << obs[0][2] << endl;
+//
+//        if (stepRes.done[0].item<bool>()) {
+//            environment.Reset();
+//        }
+//    }
 
     // Clean up
     environment.CleanUp();

@@ -70,7 +70,7 @@ void Environment::Init() {
     physics = PxCreatePhysics(PX_PHYSICS_VERSION, *foundation, PxTolerancesScale());
     PxSceneDesc sceneDesc(physics->getTolerancesScale());
     sceneDesc.gravity = PxVec3(0.0f, -9.81f, 0.0f);
-    gDispatcher = PxDefaultCpuDispatcherCreate(2);
+    gDispatcher = PxDefaultCpuDispatcherCreate(6);
     sceneDesc.cpuDispatcher = gDispatcher;
     sceneDesc.filterShader = MyFilterShader; //PxDefaultSimulationFilterShader;
 //    sceneDesc.cudaContextManager = gCudaContextManager;

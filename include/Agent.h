@@ -10,6 +10,7 @@
 #include "Environment.h"
 #include <torch/torch.h>
 #include <torch/optim/adamw.h>
+#include <tensorboard_logger.h>
 
 
 using namespace torch;
@@ -58,6 +59,8 @@ public:
 
     int obs_size = 7;
     int action_size = 2;
+
+    TensorBoardLogger logger = TensorBoardLogger("../runs/run_name/summaries/events.out.tfevents.mihai-desktop");
 
     std::vector<Transition> memory;
     DeviceType device = torch::kCUDA;
