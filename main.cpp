@@ -23,18 +23,18 @@ int main() {
                   .maxSteps = 1024,
                   .threshold = 0.03f,
                   .bonusAchievedReward = 10.0f,
-                  .num_envs = 12,
+                  .num_envs = 256,
     };
 
     AgentConfig agentConfig{.num_epochs = 1000,
                             .horizon_length = 32,
-                            .mini_batch_size = 192,
-                            .learning_rate = 1e-3,
+                            .mini_batch_size = 2048,
+                            .learning_rate = 1e-4,
                             .clip_param = 0.2,
                             .value_loss_coef = 0.5,
                             .gamma = 0.9,
                             .tau = 0.95,
-                            .reward_multiplier = 0.1,
+                            .reward_multiplier = 1.0,
     };
 
     Environment environment(envConfig);

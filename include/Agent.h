@@ -60,7 +60,8 @@ public:
     int obs_size = 7;
     int action_size = 2;
 
-    TensorBoardLogger logger = TensorBoardLogger("../runs/run_name/summaries/events.out.tfevents.mihai-desktop");
+    TensorBoardLoggerOptions options{1000000, 5, false};
+    TensorBoardLogger logger = TensorBoardLogger("../runs/run_name/summaries/events.out.tfevents.mihai-desktop", options);
 
     std::vector<Transition> memory;
     DeviceType device = torch::kCUDA;

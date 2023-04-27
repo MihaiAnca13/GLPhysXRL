@@ -76,6 +76,7 @@ void Agent::Train() {
             auto surr1 = ratio * advantages;
             auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
             auto surrogate_loss = -torch::min(surr1, surr2);
+
             auto value_loss = torch::mse_loss(net_output.value, returns);
 
             // calculate mean of surrogate_loss
@@ -153,34 +154,31 @@ void Agent::ComputeAdvantage() {
     // Disable gradient calculations
     torch::NoGradGuard no_grad;
     // Compute returns and advantages
-    Tensor returns = torch::zeros({num_envs, horizon_length}, floatOptions);
+    Tensor reward = torch::zeros({num_envs, horizon_length}, floatOptions);
     Tensor values = torch::zeros({num_envs, horizon_length}, floatOptions);
     Tensor dones = torch::zeros({num_envs, horizon_length}, floatOptions);
     Tensor advantages = torch::zeros({num_envs, horizon_length}, floatOptions);
-    Tensor R = torch::zeros({num_envs}, floatOptions);
 
-    // compute returns and save values and dones for each step
+    // save reward, values and dones for each step
     for (int step = memory.size() - 1; step >= 0; step--) {
-        R = memory[step].reward + gamma * R;
-        returns.narrow(1, step, 1) = R.unsqueeze(1);
-
+        reward.narrow(1, step, 1) = memory[step].reward.unsqueeze(1);
         values.narrow(1, step, 1) = memory[step].value;
         dones.narrow(1, step, 1) = memory[step].done.unsqueeze(1);
     }
 
     auto last_values = get_value(memory[memory.size() - 1].next_obs);
-    advantages = compute_GAE(returns, values, dones, last_values);
+    advantages = compute_GAE(reward, values, dones, last_values);
 
     // update memory with advantages, returns
     for (int step = 0; step < memory.size(); step++) {
         memory[step].advantages = advantages.narrow(1, step, 1);
-        memory[step].returns = returns.narrow(1, step, 1);
+        memory[step].returns = advantages.narrow(1, step, 1) + memory[step].value;
     }
 }
 
 
 // GAE
-Tensor Agent::compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor &last_values) const {
+Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values) const {
     Tensor advantages = torch::zeros({num_envs, horizon_length}, floatOptions);
     Tensor delta = torch::zeros({num_envs}, floatOptions);
     Tensor last_gae = torch::zeros({num_envs, 1}, floatOptions);
@@ -193,7 +191,7 @@ Tensor Agent::compute_GAE(const Tensor &returns, const Tensor &values, const Ten
             nextvalues = values.narrow(1, step + 1, 1);
         }
 
-        delta = returns.narrow(1, step, 1) + gamma * nextvalues * (1 - dones.narrow(1, step, 1)) - values.narrow(1, step, 1);
+        delta = rewards.narrow(1, step, 1) + gamma * nextvalues * (1 - dones.narrow(1, step, 1)) - values.narrow(1, step, 1);
         advantages.narrow(1, step, 1) = delta + gamma * tau * (1 - dones.narrow(1, step, 1)) * last_gae;
         last_gae = advantages.narrow(1, step, 1);
     }
