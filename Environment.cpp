@@ -55,6 +55,8 @@ Environment::Environment(EnvConfig config) {
     ballPosition.reserve(num_envs);
     angle.reserve(num_envs);
 
+    total_reward = torch::zeros({num_envs}, floatOptions);
+
     Init();
 };
 
@@ -273,7 +275,7 @@ Tensor Environment::GetObservation() {
 }
 
 
-StepResult Environment::Step(const Tensor &action) {
+StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
     // assert the shape of action is {numBalls, 2}
     assert(action.sizes() == torch::IntArrayRef({num_envs, 2}));
 
@@ -321,16 +323,22 @@ StepResult Environment::Step(const Tensor &action) {
         }
     }
 
+    auto reward = ComputeReward();
+    total_reward += reward;
+
     _step++;
     bool done = false;
 
     if (_step >= maxSteps) {
+        logger->add_scalar("Env/mean_reward", _episode, total_reward.mean().item<float>());
+        _episode++;
+        total_reward = torch::zeros({num_envs}, floatOptions);
         done = true;
     }
 
-    auto done_tensor = torch::ones({num_envs}, torch::kFloat32) * done;
+    auto done_tensor = torch::ones({num_envs}, floatOptions) * done;
 
-    return {GetObservation(), ComputeReward(), done_tensor};
+    return {GetObservation(), reward, done_tensor};
 }
 
 

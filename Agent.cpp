@@ -75,18 +75,18 @@ void Agent::Train() {
             auto ratio = (old_log_prob - new_log_prob).exp();
             auto surr1 = ratio * advantages;
             auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
-            auto surrogate_loss = -torch::min(surr1, surr2);
+            auto actor_loss = -torch::min(surr1, surr2);
 
             auto value_loss = torch::mse_loss(net_output.value, returns);
 
             // calculate mean of surrogate_loss
-            surrogate_loss = surrogate_loss.mean();
+            actor_loss = actor_loss.mean();
 
             // log the loss
-            logger.add_scalar("Loss/actor_loss", epoch * num_steps / mini_batch_size + i, surrogate_loss.item<float>());
+            logger.add_scalar("Loss/actor_loss", epoch * num_steps / mini_batch_size + i, actor_loss.item<float>());
             logger.add_scalar("Loss/critic_loss", epoch * num_steps / mini_batch_size + i, value_loss.item<float>());
 
-            auto loss = surrogate_loss + value_loss_coef * value_loss;
+            auto loss = actor_loss + value_loss_coef * value_loss;
 
             // Update the network
             optimizer.zero_grad();
@@ -102,6 +102,10 @@ void Agent::Train() {
             } else if (loss.item<float>() < last_loss) {
                 cout << "Saving model new best with loss " << loss.item<float>() << endl;
                 last_loss = loss.item<float>();
+                torch::save(net, "model.pt");
+            }
+
+            if (epoch % 10 == 0) {
                 torch::save(net, "model.pt");
             }
         }
@@ -126,15 +130,15 @@ int Agent::PlayOne(Environment *env) {
         Tensor old_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
 
         // clamping takes place in the environment
-        auto envStep = env->Step(action);
+        auto envStep = env->Step(action, &logger);
         Tensor reward = envStep.reward * reward_multiplier;
         Tensor next_obs = envStep.observation;
 
         Transition transition = {_obs,
                                  action,
-                                 reward.to(device),
+                                 reward,
                                  next_obs,
-                                 envStep.done.to(device),
+                                 envStep.done,
                                  get_value(next_obs),
                                  old_log_prob,
                                  torch::zeros({1}, floatOptions),
@@ -167,7 +171,8 @@ void Agent::ComputeAdvantage() {
     }
 
     auto last_values = get_value(memory[memory.size() - 1].next_obs);
-    advantages = compute_GAE(reward, values, dones, last_values);
+    auto last_dones = memory[memory.size() - 1].done.unsqueeze(1);
+    advantages = compute_GAE(reward, values, dones, last_values, last_dones);
 
     // update memory with advantages, returns
     for (int step = 0; step < memory.size(); step++) {
@@ -178,21 +183,24 @@ void Agent::ComputeAdvantage() {
 
 
 // GAE
-Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values) const {
+Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor& last_dones) const {
     Tensor advantages = torch::zeros({num_envs, horizon_length}, floatOptions);
     Tensor delta = torch::zeros({num_envs}, floatOptions);
     Tensor last_gae = torch::zeros({num_envs, 1}, floatOptions);
     Tensor nextvalues = torch::zeros({num_envs}, floatOptions);
+    Tensor nextnonterminal = torch::zeros({num_envs}, floatOptions);
 
     for (int step = horizon_length - 1; step >= 0; step--) {
         if (step == horizon_length - 1) {
             nextvalues = last_values;
+            nextnonterminal = last_dones;
         } else {
             nextvalues = values.narrow(1, step + 1, 1);
+            nextnonterminal = 1 - dones.narrow(1, step + 1, 1);
         }
 
-        delta = rewards.narrow(1, step, 1) + gamma * nextvalues * (1 - dones.narrow(1, step, 1)) - values.narrow(1, step, 1);
-        advantages.narrow(1, step, 1) = delta + gamma * tau * (1 - dones.narrow(1, step, 1)) * last_gae;
+        delta = rewards.narrow(1, step, 1) + gamma * nextvalues * nextnonterminal - values.narrow(1, step, 1);
+        advantages.narrow(1, step, 1) = delta + gamma * tau * nextnonterminal * last_gae;
         last_gae = advantages.narrow(1, step, 1);
     }
 

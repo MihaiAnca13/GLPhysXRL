@@ -23,6 +23,7 @@
 #include "Skybox.h"
 #include "Model.h"
 #include <torch/torch.h>
+#include <tensorboard_logger.h>
 
 using namespace std;
 using namespace physx;
@@ -91,6 +92,9 @@ public:
     bool isOpen = true;
     bool springCamera = true;
 
+    int _episode = 0;
+    Tensor total_reward;
+
     GLFWwindow *window;
 
     Shader shaderProgram{};
@@ -124,7 +128,7 @@ public:
 
     void Inputs();
 
-    StepResult Step(const Tensor &action);
+    StepResult Step(const Tensor &action, TensorBoardLogger *logger);
 
     Tensor Reset();
 

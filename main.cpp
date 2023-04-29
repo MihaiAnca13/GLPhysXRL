@@ -3,12 +3,18 @@
 #include <iostream>
 #include <cstdlib>
 #include <cuda_runtime.h>
+#include <filesystem>
 
 
 using std::cout, std::endl;
 
 
 int main() {
+    // check if file exists
+    if (std::filesystem::exists("../runs/run_name/summaries/events.out.tfevents.mihai-desktop"))
+        // remove file
+        std::filesystem::remove("../runs/run_name/summaries/events.out.tfevents.mihai-desktop");
+
     cudaSetDevice(0);
 
     srand(time(NULL));
@@ -19,8 +25,8 @@ int main() {
                   .ballDensity = 1.0f,
                   .numSubsteps = 5,
                   .manualControl = false,
-                  .headless = true,
-                  .maxSteps = 1024,
+                  .headless = false,
+                  .maxSteps = 256,  // 1024
                   .threshold = 0.03f,
                   .bonusAchievedReward = 10.0f,
                   .num_envs = 256,

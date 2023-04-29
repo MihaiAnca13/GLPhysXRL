@@ -83,7 +83,7 @@ public:
     Tensor get_value(Tensor observation);
 
     // GAE function for calculating the advantage
-    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values) const;
+    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values, const Tensor& last_dones) const;
 
     static Tensor log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
