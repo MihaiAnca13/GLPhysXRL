@@ -11,6 +11,7 @@
 #include <torch/torch.h>
 #include <torch/optim/adamw.h>
 #include <tensorboard_logger.h>
+#include "RunningMean.h"
 
 
 using namespace torch;
@@ -36,6 +37,7 @@ typedef struct {
     float learning_rate;
     float clip_param;
     float value_loss_coef;
+    float bound_loss_coef;
     float gamma;
     float tau;
     float reward_multiplier;
@@ -51,11 +53,12 @@ public:
     float learning_rate = 1e-3;
     float clip_param = 0.2;
     float value_loss_coef = 0.5;
+    float bound_loss_coef = 0.0001;
     float gamma = 0.9;
     float tau = 0.95;
     float reward_multiplier = 0.01;
 
-    float last_loss = 0.0f;
+    float last_reward = 0.0f;
 
     int obs_size = 7;
     int action_size = 2;
@@ -69,6 +72,8 @@ public:
     TensorOptions lossOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(true);
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
     TensorOptions boolOptions = torch::TensorOptions().dtype(torch::kBool).device(device).layout(torch::kStrided).requires_grad(false);
+
+    RunningMeanStd value_mean_std = RunningMeanStd(1, 1e-5, false, false);
 
     Agent(AgentConfig config, Environment *env);
 

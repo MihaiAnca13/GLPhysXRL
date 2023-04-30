@@ -20,6 +20,5 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- normalize returns
 - time compute advantage and play step functions
 - fix physx gpu?

@@ -18,6 +18,7 @@ Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environ
     learning_rate = config.learning_rate;
     clip_param = config.clip_param;
     value_loss_coef = config.value_loss_coef;
+    bound_loss_coef = config.bound_loss_coef;
     gamma = config.gamma;
     tau = config.tau;
     reward_multiplier = config.reward_multiplier;
@@ -29,6 +30,8 @@ Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environ
 
     net->to(device);
     net->train();
+    value_mean_std->to(device);
+    value_mean_std->train();
     memory.reserve(horizon_length);
 }
 
@@ -82,31 +85,41 @@ void Agent::Train() {
             // calculate mean of surrogate_loss
             actor_loss = actor_loss.mean();
 
+            // calculate bound loss
+            auto mu_loss_high = torch::pow(torch::clamp_min(net_output.mu - 1.1, 0.0), 2);
+            auto mu_loss_low = torch::pow(torch::clamp_max(net_output.mu + 1.1, 0.0), 2);
+            auto b_loss = (mu_loss_low + mu_loss_high).sum(-1).mean();
+
             // log the loss
             logger.add_scalar("Loss/actor_loss", epoch * num_steps / mini_batch_size + i, actor_loss.item<float>());
             logger.add_scalar("Loss/critic_loss", epoch * num_steps / mini_batch_size + i, value_loss.item<float>());
+            logger.add_scalar("Loss/bound_loss", epoch * num_steps / mini_batch_size + i, b_loss.item<float>());
 
-            auto loss = actor_loss + value_loss_coef * value_loss;
+            auto loss = actor_loss + value_loss_coef * value_loss + b_loss * bound_loss_coef;
 
             // Update the network
             optimizer.zero_grad();
             loss.backward();
+
+            // truncate gradients and step
+            torch::nn::utils::clip_grad_norm_(net->parameters(), 1.0);
             optimizer.step();
 
             // Print the loss
-            std::cout << "Epoch: " << epoch << " " << i + 1 << "/" << (int) (num_steps / mini_batch_size) << " Loss: " << loss.item<float>() << std::endl;
+            std::cout << "Epoch: " << epoch << " " << i + 1 << "/" << (int) (num_steps / mini_batch_size) << " Actor Loss: " << actor_loss.item<float>() << " Critic Loss: " << value_loss.item<float>() << std::endl;
             logger.add_scalar("Info/epoch", epoch * num_steps / mini_batch_size + i, (float) epoch);
 
             if (i == 0 && epoch == 0) {
-                last_loss = loss.item<float>();
-            } else if (loss.item<float>() < last_loss) {
-                cout << "Saving model new best with loss " << loss.item<float>() << endl;
-                last_loss = loss.item<float>();
+                last_reward = env->last_reward_mean;
+            } else if (env->last_reward_mean > last_reward) {
+                cout << "Saving model with new best reward " << env->last_reward_mean << endl;
+                last_reward = env->last_reward_mean;
                 torch::save(net, "model.pt");
             }
 
-            if (epoch % 10 == 0) {
-                torch::save(net, "model.pt");
+            if (epoch % 100 == 0 && i == 0) {
+                cout << "Saving model with current reward: " << env->last_reward_mean << endl;
+                torch::save(net, "auto_model.pt");
             }
         }
     }
@@ -174,10 +187,17 @@ void Agent::ComputeAdvantage() {
     auto last_dones = memory[memory.size() - 1].done.unsqueeze(1);
     advantages = compute_GAE(reward, values, dones, last_values, last_dones);
 
+    auto returns = advantages + values;
+
+    // flatten returns, pass through value_mean_std and then reshape back
+    returns = returns.view({num_envs * horizon_length, 1});
+    returns = value_mean_std->forward(returns);
+    returns = returns.view({num_envs, horizon_length});
+
     // update memory with advantages, returns
     for (int step = 0; step < memory.size(); step++) {
         memory[step].advantages = advantages.narrow(1, step, 1);
-        memory[step].returns = advantages.narrow(1, step, 1) + memory[step].value;
+        memory[step].returns = returns.narrow(1, step, 1);
     }
 }
 
@@ -209,7 +229,7 @@ Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Ten
 
 
 Tensor Agent::get_value(Tensor observation) {
-    return net->forward(std::move(observation)).value;
+    return value_mean_std->forward(net->forward(std::move(observation)).value, true);
 }
 
 

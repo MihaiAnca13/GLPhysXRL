@@ -94,6 +94,7 @@ public:
 
     int _episode = 0;
     Tensor total_reward;
+    float last_reward_mean = INT_MIN;
 
     GLFWwindow *window;
 

@@ -332,6 +332,7 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
     if (_step >= maxSteps) {
         logger->add_scalar("Env/mean_reward", _episode, total_reward.mean().item<float>());
         _episode++;
+        last_reward_mean = total_reward.mean().item<float>();
         total_reward = torch::zeros({num_envs}, floatOptions);
         done = true;
     }

@@ -35,7 +35,7 @@ add_executable(c_ml
         objects/Mesh.cpp
         objects/Model.cpp
         Environment.cpp
-        Agent.cpp LinearNetwork.cpp)
+        Agent.cpp LinearNetwork.cpp RunningMean.cpp)
 
 # Add third party directory
 add_subdirectory(libs)
