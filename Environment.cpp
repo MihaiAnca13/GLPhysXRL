@@ -272,7 +272,7 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
             // Wrap angle between -PI and PI
             fAngle = (float) UtilsAngles::WrapPosNegPI(fAngle);
 
-            auto fForce = force.item<float>();
+            auto fForce = -force.item<float>();
 
             // apply force at given angle
             balls[i]->addForce(PxVec3(fForce * cos(fAngle), 0.0f, fForce * sin(fAngle)), PxForceMode::eFORCE, true);

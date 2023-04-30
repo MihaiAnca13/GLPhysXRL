@@ -21,7 +21,8 @@ int main() {
 
     srand(time(NULL));
 
-    EnvConfig envConfig{.width = 800,
+    EnvConfig envConfig{
+            .width = 800,
             .height = 600,
             .bounds = 100.0f,
             .ballDensity = 1.0f,
@@ -34,14 +35,15 @@ int main() {
             .num_envs = 256,
     };
 
-    AgentConfig agentConfig{.num_epochs = 1000,
+    AgentConfig agentConfig{
+            .num_epochs = 1000,
             .horizon_length = 32,
             .mini_batch_size = 2048,
             .learning_rate = 1e-4,
             .clip_param = 0.2,
             .value_loss_coef = 2.0,
             .bound_loss_coef = 0.0001,
-            .gamma = 0.9,
+            .gamma = 0.99,
             .tau = 0.95,
             .reward_multiplier = 1.0,
     };
@@ -54,10 +56,11 @@ int main() {
     agent.Train();
 
 //    auto action = torch::zeros({envConfig.num_envs, 2}, torch::TensorOptions().dtype(torch::kFloat32));
-//    while (!glfwWindowShouldClose(environment.window)) {
-//        auto stepRes = environment.Step(action);
 //
-//        cout << "reward: " << stepRes.reward << endl;
+//    while (!glfwWindowShouldClose(environment.window)) {
+//        auto stepRes = environment.Step(action, &agent.logger);
+//
+////        cout << "reward: " << stepRes.reward << endl;
 ////        auto obs = stepRes.observation;
 ////        cout << "ball pos: " << obs[0][0] << ", " << obs[0][1] << ", " << obs[0][2] << endl;
 //

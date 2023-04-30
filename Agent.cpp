@@ -140,7 +140,7 @@ int Agent::PlayOne() {
     memory.clear();
     int num_steps = 0;
     // Collect data from the environment
-    for (int step = 0; step < horizon_length; ++step) {
+    for (int step = 0; step < horizon_length; step++) {
         auto net_output = net->forward(_obs);
         // convert from mu and sigma to action
         Tensor action = at::normal(net_output.mu, torch::ones_like(net_output.mu));
@@ -158,7 +158,7 @@ int Agent::PlayOne() {
                                  action,
                                  reward,
                                  next_obs,
-                                 envStep.done,
+                                 torch::zeros_like(envStep.done), // done is always false
                                  get_value(_obs),
                                  old_log_prob,
                                  torch::zeros({1}),

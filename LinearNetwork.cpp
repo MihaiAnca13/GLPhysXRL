@@ -10,6 +10,13 @@ NetworkImpl::NetworkImpl(int64_t in, int64_t out) {
     fc3 = register_module("fc3", nn::Linear(128, 128));
     mu = register_module("mu", nn::Linear(128, out));
     value = register_module("value", nn::Linear(128, 1));
+
+    // Use Xavier initialization for the weights
+    torch::nn::init::xavier_uniform_(fc1->weight);
+    torch::nn::init::xavier_uniform_(fc2->weight);
+    torch::nn::init::xavier_uniform_(fc3->weight);
+    torch::nn::init::xavier_uniform_(mu->weight);
+    torch::nn::init::xavier_uniform_(value->weight);
 }
 
 

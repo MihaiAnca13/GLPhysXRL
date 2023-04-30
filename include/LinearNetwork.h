@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <torch/torch.h>
+#include <torch/nn/init.h>
 
 using namespace torch;
 
