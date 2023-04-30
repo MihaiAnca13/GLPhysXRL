@@ -76,14 +76,15 @@ public:
 
     int _step = 0;
 
-    PxVec3 goalPosition = PxVec3(-6.61703f, 1.31621f, -1.71782f);
+    Tensor goalPosition = torch::tensor({{-6.61703f, 1.31621f, -1.71782f}}, torch::TensorOptions().dtype(torch::kFloat32).device(kCUDA));
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
     glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
-    std::vector<PxQuat> ballRotation;
-    std::vector<PxVec3> ballPosition;
 
-    std::vector<float> angle;
+    Tensor ballRotation;
+    Tensor ballPosition;
+    Tensor angle;
+
     float sensitivity = 0.0174533f * 2.0f; // 2 degrees
     float maxForce = 0.375f;
 
@@ -125,7 +126,7 @@ public:
 
     void CleanUp();
 
-    void StepPhysics();
+    void StepPhysics(bool updateValues);
 
     void Inputs();
 

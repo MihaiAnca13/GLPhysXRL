@@ -51,9 +51,10 @@ Environment::Environment(EnvConfig config) {
     bonusAchievedReward = config.bonusAchievedReward;
     num_envs = config.num_envs;
 
-    ballRotation.reserve(num_envs);
-    ballPosition.reserve(num_envs);
-    angle.reserve(num_envs);
+    // initialize the ball position, rotation and angle
+    ballPosition = torch::zeros({num_envs, 3}, floatOptions);
+    ballRotation = torch::zeros({num_envs, 4}, floatOptions);
+    angle = torch::zeros({num_envs, 1}, floatOptions);
 
     total_reward = torch::zeros({num_envs}, floatOptions);
 
@@ -217,14 +218,19 @@ void Environment::Init() {
 }
 
 
-void Environment::StepPhysics() {
+void Environment::StepPhysics(bool updateValues) {
     scene->simulate(1.0f / 60.0f);
     scene->fetchResults(true);
 
-    // update balls position
-    for (int i = 0; i < num_envs; i++) {
-        ballPosition[i] = balls[i]->getGlobalPose().p;
-        ballRotation[i] = balls[i]->getGlobalPose().q;
+    if (updateValues) {
+        // update balls position
+        for (int i = 0; i < num_envs; i++) {
+            PxTransform transform = balls[i]->getGlobalPose();
+            PxVec3 pos = transform.p;
+            PxQuat quat = transform.q;
+            ballPosition[i] = torch::tensor({pos.x, pos.y, pos.z});
+            ballRotation[i] = torch::tensor({quat.x, quat.y, quat.z, quat.w});
+        }
     }
 }
 
@@ -239,39 +245,13 @@ Tensor Environment::Reset() {
     }
     _step = 0;
     springArmCamera = SpringArmCamera(mWidth, mHeight, initialBallPos + glm::vec3(3.0f, 1.0f, 0.0f), initialBallPos);
-    StepPhysics();
+    StepPhysics(true);
     return GetObservation();
 }
 
 
 Tensor Environment::GetObservation() {
-    // create a tensor with shape {numBalls, observation_size}
-    Tensor observation = torch::zeros({num_envs, observation_size}, floatOptions);
-
-    for (int i = 0; i < num_envs; i++) {
-        // create a GPU buffer for the data
-        float *buffer;
-        cudaMallocManaged(&buffer, observation_size * sizeof(float));
-
-        // copy the data from CPU to GPU
-        cudaMemcpy(buffer, &ballPosition[i].x, sizeof(float) * 3, cudaMemcpyHostToDevice);
-        cudaMemcpy(buffer + 3, &ballRotation[i].x, sizeof(float) * 4, cudaMemcpyHostToDevice);
-        cudaMemcpy(buffer + 7, &angle[i], sizeof(float), cudaMemcpyHostToDevice);
-
-        // normalizing values
-        buffer[0] = buffer[0] / 15.0f;
-        buffer[1] = buffer[1] / 5.0f;
-        buffer[2] = buffer[2] / 10.0f;
-        buffer[7] = buffer[7] / PxPi;
-
-        // create a tensor from the GPU buffer
-        Tensor observation_tensor = torch::from_blob(buffer, {observation_size}, floatOptions);
-        observation[i] = observation_tensor;
-
-        cudaFree(buffer);
-    }
-
-    return observation;
+    return torch::cat({ballPosition, ballRotation, angle}, -1);
 }
 
 
@@ -285,22 +265,29 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
         Tensor rotation = torch::clamp(action[i][1], -1.0f, 1.0f);
 
         if (!manualControl) {
+            auto fAngle = angle[i].item<float>();
+
             // update angle using sensitivity
-            angle[i] += rotation.item<float>() * sensitivity;
+            fAngle += rotation.item<float>() * sensitivity;
             // Wrap angle between -PI and PI
-            angle[i] = (float) UtilsAngles::WrapPosNegPI(angle[i]);
+            fAngle = (float) UtilsAngles::WrapPosNegPI(fAngle);
 
             auto fForce = force.item<float>();
 
             // apply force at given angle
-            balls[i]->addForce(PxVec3(fForce * cos(angle[i]), 0.0f, fForce * sin(angle[i])), PxForceMode::eFORCE, true);
+            balls[i]->addForce(PxVec3(fForce * cos(fAngle), 0.0f, fForce * sin(fAngle)), PxForceMode::eFORCE, true);
+
+            angle[i] = fAngle;
         }
     }
 
     // 5 substeps
     for (int i = 0; i < numSubsteps; i++) {
         // step physics
-        StepPhysics();
+        if (i == numSubsteps - 1)
+            StepPhysics(true);
+        else
+            StepPhysics(false);
         // render
         if (!headless) {
             Inputs();
@@ -311,15 +298,18 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
         }
     }
 
+    // clamp ball position to bounds and create mask for envs where this was needed
+    auto mask = torch::zeros({num_envs}, torch::kBool);
+    auto oldBallPosition = ballPosition.clone();
+    ballPosition = torch::clamp(ballPosition, -mBounds, mBounds);
+    // set mask based on changes between old and new ball position
+    mask = (ballPosition - oldBallPosition).sum(-1) != 0.0f;
+    // loop only envs that require the change
     for (int i = 0; i < num_envs; i++) {
-        auto pos = ballPosition[i];
-        // check if ball position is out of bounds in PhysX
-        if (pos.x > mBounds || pos.x < -mBounds || pos.y > mBounds || pos.y < -mBounds || pos.z > mBounds || pos.z < -mBounds) {
-            // clamp ball position to bounds
-            pos.x = std::clamp(pos.x, -mBounds, mBounds);
-            pos.y = std::clamp(pos.y, -mBounds, mBounds);
-            pos.z = std::clamp(pos.z, -mBounds, mBounds);
-            balls[i]->setGlobalPose(PxTransform(PxVec3(pos.x, pos.y, pos.z), ballRotation[i]), true);
+        if (mask[i].item<bool>()) {
+            auto pos = PxVec3(ballPosition[i][0].item<float>(), ballPosition[i][1].item<float>(), ballPosition[i][2].item<float>());
+            auto rot = PxQuat(ballRotation[i][0].item<float>(), ballRotation[i][1].item<float>(), ballRotation[i][2].item<float>(), ballRotation[i][3].item<float>());
+            balls[i]->setGlobalPose(PxTransform(pos, rot), true);
         }
     }
 
@@ -360,7 +350,7 @@ void Environment::Render() {
     ImGui::Render();
 
     if (springCamera) {
-        glmBallP = glm::vec3(ballPosition[0].x, ballPosition[0].y, ballPosition[0].z);
+        glmBallP = glm::vec3(ballPosition[0][0].item<float>(), ballPosition[0][1].item<float>(), ballPosition[0][2].item<float>());
     }
 
     // Depth testing needed for Shadow Map
@@ -376,7 +366,9 @@ void Environment::Render() {
 
     // render balls
     for (int i = 0; i < num_envs; i++) {
-        ballObject.Draw(shadowMapProgram.ID, ballPosition[i], ballRotation[i]);
+        auto pos = PxVec3(ballPosition[i][0].item<float>(), ballPosition[i][1].item<float>(), ballPosition[i][2].item<float>());
+        auto rot = PxQuat(ballRotation[i][0].item<float>(), ballRotation[i][1].item<float>(), ballRotation[i][2].item<float>(), ballRotation[i][3].item<float>());
+        ballObject.Draw(shadowMapProgram.ID, pos, rot);
     }
 
     // render scene
@@ -401,7 +393,7 @@ void Environment::Render() {
             springArmCamera.Inputs(window, balls[0]);
             angle[0] = springArmCamera.angle;
         } else {
-            springArmCamera.angle = angle[0];
+            springArmCamera.angle = angle[0].item<float>();
         }
 
         springArmCamera.Matrix(glmBallP, 45.0f, 1.6f, 100.0f, shaderProgram, "camMatrix");
@@ -428,7 +420,9 @@ void Environment::Render() {
     // render balls
     glUniform1ui(glGetUniformLocation(shaderProgram.ID, "specMulti"), 16);
     for (int i = 0; i < num_envs; i++) {
-        ballObject.Draw(shaderProgram.ID, ballPosition[i], ballRotation[i]);
+        auto pos = PxVec3(ballPosition[i][0].item<float>(), ballPosition[i][1].item<float>(), ballPosition[i][2].item<float>());
+        auto rot = PxQuat(ballRotation[i][0].item<float>(), ballRotation[i][1].item<float>(), ballRotation[i][2].item<float>(), ballRotation[i][3].item<float>());
+        ballObject.Draw(shaderProgram.ID, pos, rot);
     }
 
     // Since the cubemap will always have a depth of 1.0, we need that equal sign so it doesn't get discarded
@@ -485,23 +479,15 @@ void Environment::CleanUp() {
 
 
 Tensor Environment::ComputeReward() {
-    // initialize reward as a tensor of size num_envs
-    Tensor reward = torch::zeros({num_envs}, floatOptions);
+    // calculate the reward as the euclidean distance between the ball and the goal. the reward is higher when the ball is closer to the goal
+    auto distance = torch::sqrt((ballPosition - goalPosition.expand({num_envs, 3})).pow(2).sum(-1));
+    auto reward = -distance / 25.0f;
 
-    // calculate the reward as the euclidean distance between the ball and the goal and then apply the hyperbolic tangent. the reward is higher when the ball is closer to the goal
-    for (int i = 0; i < num_envs; i++) {
-        float distance = std::sqrt(std::pow(ballPosition[i].x - goalPosition.x, 2) +
-                                   std::pow(ballPosition[i].y - goalPosition.y, 2) +
-                                   std::pow(ballPosition[i].z - goalPosition.z, 2));
-
-        // max distance is 25.0, so reward is between -1 and 1
-        reward[i] = -distance / 25.0f;
-
-        // if within threshold of target, add bonus reward
-        if (distance < threshold) {
-            reward[i] += bonusAchievedReward;
-        }
-    }
+    // if within threshold of target, add bonus reward
+    auto bonus = torch::zeros({num_envs}, floatOptions);
+    auto mask = distance < threshold;
+    bonus.masked_fill_(mask, bonusAchievedReward);
+    reward += bonus;
 
     return reward;
 }
