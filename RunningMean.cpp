@@ -3,8 +3,6 @@
 //
 
 #include "RunningMean.h"
-#include <iostream>
-using namespace std;
 
 
 RunningMeanStdImpl::RunningMeanStdImpl(IntArrayRef insize, double epsilon, bool per_channel, bool norm_only)

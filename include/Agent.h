@@ -12,6 +12,7 @@
 #include <torch/optim/adamw.h>
 #include <tensorboard_logger.h>
 #include "RunningMean.h"
+#include "TimeMe.h"
 
 
 using namespace torch;
@@ -69,7 +70,6 @@ public:
     std::vector<Transition> memory;
     DeviceType device = torch::kCUDA;
 
-    TensorOptions lossOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(true);
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
     TensorOptions boolOptions = torch::TensorOptions().dtype(torch::kBool).device(device).layout(torch::kStrided).requires_grad(false);
 
@@ -87,13 +87,16 @@ public:
 
     Tensor get_value(Tensor observation);
 
+    void SetTrain();
+    void SetEval();
+
     // GAE function for calculating the advantage
     [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values, const Tensor& last_dones) const;
 
     static Tensor log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
-    int PlayOne(Environment *env);
-    void ComputeAdvantage();
+    int PlayOne();
+    void PrepareBatch();
 
 private:
     Tensor _obs;

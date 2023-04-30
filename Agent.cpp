@@ -29,10 +29,19 @@ Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environ
     action_size = env->action_size;
 
     net->to(device);
-    net->train();
     value_mean_std->to(device);
-    value_mean_std->train();
     memory.reserve(horizon_length);
+}
+
+
+void Agent::SetTrain() {
+    net->train();
+    value_mean_std->train();
+}
+
+void Agent::SetEval() {
+    net->eval();
+    value_mean_std->eval();
 }
 
 
@@ -40,12 +49,14 @@ void Agent::Train() {
     _obs = env->Reset();
 
     for (int epoch = 0; epoch < num_epochs; ++epoch) {
-        int num_steps = PlayOne(env);
-        ComputeAdvantage();
+        SetEval();
+        int num_steps = PlayOne();
+        PrepareBatch();
 
         // assert that num_envs * horizon_length is divisible by mini_batch_size
         assert(num_envs * horizon_length % mini_batch_size == 0);
 
+        SetTrain();
         // Update the agent using PPO
         for (int i = 0; i < num_steps / mini_batch_size; ++i) {
             // Sample a mini-batch of transitions and convert the required samples to tensors
@@ -65,12 +76,8 @@ void Agent::Train() {
                 returns[j] = memory[idx1].returns[idx2];
             }
 
-            {
-                // no grads
-                torch::NoGradGuard no_grad;
-                // normalize advantages
-                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8);
-            }
+            obs.requires_grad_(true);
+            returns.requires_grad_(true);
 
             // Compute the surrogate loss and the value loss
             auto net_output = net->forward(obs);
@@ -126,14 +133,14 @@ void Agent::Train() {
 }
 
 
-int Agent::PlayOne(Environment *env) {
+int Agent::PlayOne() {
+    // Disable gradient calculations
+    torch::NoGradGuard no_grad;
+
     memory.clear();
     int num_steps = 0;
     // Collect data from the environment
     for (int step = 0; step < horizon_length; ++step) {
-        // Disable gradient calculations
-        torch::NoGradGuard no_grad;
-
         auto net_output = net->forward(_obs);
         // convert from mu and sigma to action
         Tensor action = at::normal(net_output.mu, torch::ones_like(net_output.mu));
@@ -152,10 +159,10 @@ int Agent::PlayOne(Environment *env) {
                                  reward,
                                  next_obs,
                                  envStep.done,
-                                 get_value(next_obs),
+                                 get_value(_obs),
                                  old_log_prob,
-                                 torch::zeros({1}, floatOptions),
-                                 torch::zeros({1}, floatOptions)};
+                                 torch::zeros({1}),
+                                 torch::zeros({1})};
         memory.push_back(transition);
         _obs = next_obs;
         if (envStep.done[0].item<float>() == 1.0f) {
@@ -167,7 +174,7 @@ int Agent::PlayOne(Environment *env) {
 }
 
 
-void Agent::ComputeAdvantage() {
+void Agent::PrepareBatch() {
     // Disable gradient calculations
     torch::NoGradGuard no_grad;
     // Compute returns and advantages
@@ -190,9 +197,14 @@ void Agent::ComputeAdvantage() {
     auto returns = advantages + values;
 
     // flatten returns, pass through value_mean_std and then reshape back
+    SetTrain();
     returns = returns.view({num_envs * horizon_length, 1});
     returns = value_mean_std->forward(returns);
-    returns = returns.view({num_envs, horizon_length});
+    returns = returns.reshape({num_envs, horizon_length});
+    SetEval();
+
+    // normalize advantage
+    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8);
 
     // update memory with advantages, returns
     for (int step = 0; step < memory.size(); step++) {
