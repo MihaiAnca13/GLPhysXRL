@@ -3,6 +3,8 @@
 //
 
 #include "RunningMean.h"
+#include <iostream>
+using namespace std;
 
 
 RunningMeanStdImpl::RunningMeanStdImpl(IntArrayRef insize, double epsilon, bool per_channel, bool norm_only)
@@ -28,20 +30,18 @@ RunningMeanStdImpl::RunningMeanStdImpl(IntArrayRef insize, double epsilon, bool 
     count = register_buffer("count", torch::ones({}, kFloat64));
 }
 
-MeanVarCount RunningMeanStdImpl::_update_mean_var_count_from_moments(const Tensor& mean, const Tensor& var, const Tensor& batch_mean, const Tensor& batch_var,
-                                                                      const Tensor& batch_count) {
-    Tensor delta = batch_mean - mean;
+void RunningMeanStdImpl::_update_mean_var_count_from_moments(const Tensor& batch_mean, const Tensor& batch_var, const Tensor& batch_count) {
+    Tensor delta = batch_mean - running_mean;
     Tensor tot_count = count + batch_count;
 
-    Tensor new_mean = mean + delta * batch_count / tot_count;
+    running_mean = running_mean + delta * batch_count / tot_count;
 
-    Tensor m_a = var * count;
+    Tensor m_a = running_var * count;
     Tensor m_b = batch_var * batch_count;
     Tensor M2 = m_a + m_b + delta.pow(2) * count * batch_count / tot_count;
 
-    Tensor new_var = M2 / tot_count;
-
-    return {new_mean, new_var, tot_count};
+    running_var = M2 / tot_count;
+    count = tot_count;
 }
 
 Tensor RunningMeanStdImpl::forward(Tensor input, bool unnorm) {
@@ -49,10 +49,7 @@ Tensor RunningMeanStdImpl::forward(Tensor input, bool unnorm) {
         auto mean = input.mean(axis);
         auto var = input.var(axis);
 
-        auto update = _update_mean_var_count_from_moments(running_mean, running_var, mean, var, torch::tensor(input.size(0)));
-        running_mean = update.mean;
-        running_var = update.var;
-        count = update.count;
+        _update_mean_var_count_from_moments(mean, var, torch::tensor(input.size(0)));
     }
 
     Tensor current_mean, current_var;

@@ -20,5 +20,6 @@ Install OpenGL, GLAD and glfw3.
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
 ## TODO
-- solve critic loss not going down enough
+- solve actor/bound spikes
+- adaptive lr?
 - fix physx gpu?

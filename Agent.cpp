@@ -81,7 +81,7 @@ void Agent::Train() {
 
             // Compute the surrogate loss and the value loss
             auto net_output = net->forward(obs);
-            auto new_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
+            auto new_log_prob = neg_log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
             auto ratio = (old_log_prob - new_log_prob).exp();
             auto surr1 = ratio * advantages;
             auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
@@ -147,7 +147,7 @@ int Agent::PlayOne() {
         // clamp action between -1 and 1
         action = torch::clamp(action, -1.0, 1.0);
 
-        Tensor old_log_prob = log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
+        Tensor old_log_prob = neg_log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
 
         // clamping takes place in the environment
         auto envStep = env->Step(action, &logger);
@@ -159,7 +159,7 @@ int Agent::PlayOne() {
                                  reward,
                                  next_obs,
                                  torch::zeros_like(envStep.done), // done is always false
-                                 get_value(_obs),
+                                 value_mean_std->forward(net_output.value, true),
                                  old_log_prob,
                                  torch::zeros({1}),
                                  torch::zeros({1})};
@@ -217,7 +217,7 @@ void Agent::PrepareBatch() {
 // GAE
 Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor& last_dones) const {
     Tensor advantages = torch::zeros({num_envs, horizon_length}, floatOptions);
-    Tensor delta = torch::zeros({num_envs}, floatOptions);
+    Tensor delta = torch::zeros({num_envs, 1}, floatOptions);
     Tensor last_gae = torch::zeros({num_envs, 1}, floatOptions);
     Tensor nextvalues = torch::zeros({num_envs}, floatOptions);
     Tensor nextnonterminal = torch::zeros({num_envs}, floatOptions);
@@ -245,8 +245,7 @@ Tensor Agent::get_value(Tensor observation) {
 }
 
 
-// Compute the log probability of an action given the mean and standard deviation
-Tensor Agent::log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma) {
-    auto log_prob = -0.5 * (action - mu).pow(2) / sigma.pow(2) - 0.5 * log(2 * M_PI) - torch::log(sigma);
-    return log_prob.sum(1, true);
+// Compute the neg log probability of an action given the mean and standard deviation
+Tensor Agent::neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma) {
+    return 0.5 * (((action - mu) / sigma).pow(2)).sum(1, true) + 0.5 * log(2 * M_PI) * action.size(1) + torch::log(sigma).sum(1, true);
 }

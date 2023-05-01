@@ -93,7 +93,7 @@ public:
     // GAE function for calculating the advantage
     [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values, const Tensor& last_dones) const;
 
-    static Tensor log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
+    static Tensor neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
     int PlayOne();
     void PrepareBatch();
