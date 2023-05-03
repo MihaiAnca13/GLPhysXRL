@@ -47,6 +47,7 @@ void Agent::InitMemory() {
     memory.old_log_prob = torch::zeros({horizon_length, num_envs, 1}, floatOptions);
     memory.returns = torch::zeros({horizon_length, num_envs, 1}, floatOptions);
     memory.advantages = torch::zeros({horizon_length, num_envs, 1}, floatOptions);
+    memory.mu = torch::zeros({horizon_length, num_envs, action_size}, floatOptions);
 }
 
 
@@ -89,6 +90,7 @@ void Agent::Train() {
                 Tensor old_log_prob = memory.old_log_prob.index({batch_idx.slice(0, last_idx, last_idx + mini_batch_size)});
                 Tensor advantages = memory.advantages.index({batch_idx.slice(0, last_idx, last_idx + mini_batch_size)});
                 Tensor returns = memory.returns.index({batch_idx.slice(0, last_idx, last_idx + mini_batch_size)});
+                Tensor old_mu = memory.mu.index({batch_idx.slice(0, last_idx, last_idx + mini_batch_size)});
 
                 last_idx += mini_batch_size;
 
@@ -123,6 +125,10 @@ void Agent::Train() {
                 // truncate gradients and step
                 torch::nn::utils::clip_grad_norm_(net->parameters(), 1.0);
                 optimizer.step();
+
+                auto kl = policy_kl(net_output.mu, torch::ones_like(net_output.mu), old_mu, torch::ones_like(old_mu));
+                double new_lr = update_lr(kl.item<double>());
+                logger.add_scalar("Info/lr", _steps, new_lr);
 
                 last_actor_loss = actor_loss.item<float>();
                 last_critic_loss = value_loss.item<float>();
@@ -176,6 +182,7 @@ int Agent::PlayOne() {
         memory.done[step] = torch::zeros_like(envStep.done).unsqueeze(-1);  // done is always false
         memory.value[step] = value_mean_std->forward(net_output.value, true);
         memory.old_log_prob[step] = old_log_prob;
+        memory.mu[step] = net_output.mu;
 
         _obs = next_obs;
         if (envStep.done[0].item<float>() == 1.0f) {
@@ -213,6 +220,7 @@ void Agent::PrepareBatch() {
     memory.obs = memory.obs.flatten(0, 1);
     memory.action = memory.action.flatten(0, 1);
     memory.old_log_prob = memory.old_log_prob.flatten(0, 1);
+    memory.mu = memory.mu.flatten(0, 1);
 }
 
 
@@ -249,4 +257,29 @@ Tensor Agent::get_value(Tensor observation) {
 // Compute the neg log probability of an action given the mean and standard deviation
 Tensor Agent::neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma) {
     return 0.5 * (((action - mu) / sigma).pow(2)).sum(1, true) + 0.5 * log(2 * M_PI) * action.size(1) + torch::log(sigma).sum(1, true);
+}
+
+
+Tensor Agent::policy_kl(const Tensor &mu, const Tensor &sigma, const Tensor &mu_old, const Tensor &sigma_old) {
+    auto sigma_ratio = (sigma / sigma_old).log();
+    auto mu_diff = (mu_old - mu).pow(2) / (2 * sigma_old.pow(2));
+    auto kl = (sigma_ratio + mu_diff + 0.5 * log(2 * M_PI)).sum(1, true);
+    return kl.mean();
+}
+
+
+double Agent::update_lr(const double& kl) {
+    if (kl > (2.0f * kl_threshold)) {
+         learning_rate = max(min_lr, learning_rate / learning_rate_decay);
+    }
+    else if (kl < (0.5f * kl_threshold)) {
+        learning_rate = min(max_lr, learning_rate * learning_rate_decay);
+    }
+
+    // update lr in optimizer
+    for (auto& param_group : optimizer.param_groups()) {
+        param_group.options().set_lr(learning_rate);
+    }
+
+    return learning_rate;
 }

@@ -28,6 +28,7 @@ typedef struct {
     Tensor old_log_prob;
     Tensor returns;
     Tensor advantages;
+    Tensor mu;
 } Transition;
 
 
@@ -60,6 +61,11 @@ public:
     float gamma = 0.9;
     float tau = 0.95;
     float reward_multiplier = 0.01;
+
+    float min_lr = 1e-6;
+    float max_lr = 1e-2;
+    float kl_threshold = 0.008;
+    float learning_rate_decay = 1.5;
 
     float last_reward = 0.0f;
 
@@ -100,6 +106,10 @@ public:
     Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor &last_dones) const;
 
     static Tensor neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
+
+    static Tensor policy_kl(const Tensor &mu, const Tensor &sigma, const Tensor &mu_old, const Tensor &sigma_old);
+
+    double update_lr(const double& kl);
 
     int PlayOne();
 
