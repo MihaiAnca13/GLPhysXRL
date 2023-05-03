@@ -270,14 +270,14 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
 
     for (int i = 0; i < num_envs; i++) {
         // clamp action between -1 and 1
-        Tensor force = torch::clamp(action[i][0], -1.0f, 1.0f) * maxForce;
+        Tensor force = torch::clamp(action[i][0], -1.0f, 1.0f) * maxForce * 3.0f;
         Tensor rotation = torch::clamp(action[i][1], -1.0f, 1.0f);
 
         if (!manualControl) {
             auto fAngle = angle[i].item<float>();
 
             // update angle using sensitivity
-            fAngle += rotation.item<float>() * sensitivity;
+            fAngle += rotation.item<float>() * sensitivity * 3.0f;
             // Wrap angle between -PI and PI
             fAngle = (float) UtilsAngles::WrapPosNegPI(fAngle);
 

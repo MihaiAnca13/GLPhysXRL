@@ -41,8 +41,8 @@ int main() {
 
     AgentConfig agentConfig{
             .num_epochs = 1000,
-            .horizon_length = 16,
-            .mini_batch_size = 512,
+            .horizon_length = 256,
+            .mini_batch_size = 8192,
             .mini_epochs = 8,
             .learning_rate = 1e-4,
             .clip_param = 0.2,

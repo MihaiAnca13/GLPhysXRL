@@ -69,7 +69,7 @@ public:
     TensorBoardLoggerOptions options{1000000, 5, false};
     TensorBoardLogger logger = TensorBoardLogger("../runs/run_name/summaries/events.out.tfevents.mihai-desktop", options);
 
-    std::vector<Transition> memory;
+    Transition memory;
     DeviceType device = torch::kCUDA;
 
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
@@ -94,11 +94,10 @@ public:
 
     void SetEval();
 
+    void InitMemory();
+
     // GAE function for calculating the advantage
     Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor &last_dones) const;
-
-    // rewards to go function
-    Tensor compute_rewards_to_go(const Tensor &rewards, const Tensor &dones);
 
     static Tensor neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
