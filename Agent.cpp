@@ -10,11 +10,13 @@ void sleep(int seconds) {
 }
 
 
-Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environment->observation_size, environment->action_size)), optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
+Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environment->observation_size, environment->action_size)),
+                                                             optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
     //loading the config
     num_epochs = config.num_epochs;
     horizon_length = config.horizon_length;
     mini_batch_size = config.mini_batch_size;
+    mini_epochs = config.mini_epochs;
     learning_rate = config.learning_rate;
     clip_param = config.clip_param;
     value_loss_coef = config.value_loss_coef;
@@ -56,79 +58,92 @@ void Agent::Train() {
         // assert that num_envs * horizon_length is divisible by mini_batch_size
         assert(num_envs * horizon_length % mini_batch_size == 0);
 
+        float last_critic_loss, last_actor_loss;
+
         SetTrain();
-        // Update the agent using PPO
-        for (int i = 0; i < num_steps / mini_batch_size; ++i) {
-            // Sample a mini-batch of transitions and convert the required samples to tensors
-            Tensor obs = torch::zeros({mini_batch_size, obs_size}, floatOptions);
-            Tensor action = torch::zeros({mini_batch_size, action_size}, floatOptions);
-            Tensor old_log_prob = torch::zeros({mini_batch_size, 1}, floatOptions);
-            Tensor advantages = torch::zeros({mini_batch_size, 1}, floatOptions);
-            Tensor returns = torch::zeros({mini_batch_size, 1}, floatOptions);
+        for (int mini_e = 0; mini_e < mini_epochs; mini_e++) {
+            Tensor batch_idx = torch::randperm(horizon_length * num_envs, longOptions);
+            long last_idx = 0;
 
-            for (int j = 0; j < mini_batch_size; j++) {
-                int idx1 = rand() % memory.size();
-                int idx2 = rand() % num_envs;
-                obs[j] = memory[idx1].obs[idx2];
-                action[j] = memory[idx1].action[idx2];
-                old_log_prob[j] = memory[idx1].old_log_prob[idx2];
-                advantages[j] = memory[idx1].advantages[idx2];
-                returns[j] = memory[idx1].returns[idx2];
-            }
+            // Update the agent using PPO
+            for (int i = 0; i < num_steps / mini_batch_size; i++) {
+                // Sample a mini-batch of transitions and convert the required samples to tensors
+                Tensor obs = torch::zeros({mini_batch_size, obs_size}, floatOptions);
+                Tensor action = torch::zeros({mini_batch_size, action_size}, floatOptions);
+                Tensor old_log_prob = torch::zeros({mini_batch_size, 1}, floatOptions);
+                Tensor advantages = torch::zeros({mini_batch_size, 1}, floatOptions);
+                Tensor returns = torch::zeros({mini_batch_size, 1}, floatOptions);
 
-            obs.requires_grad_(true);
-            returns.requires_grad_(true);
+                for (int j = 0; j < mini_batch_size; j++) {
+                    long idx1 = (batch_idx[last_idx + j] / num_envs).item<long>();
+                    long idx2 = (batch_idx[last_idx + j] % num_envs).item<long>();
+                    obs[j] = memory[idx1].obs[idx2];
+                    action[j] = memory[idx1].action[idx2];
+                    old_log_prob[j] = memory[idx1].old_log_prob[idx2];
+                    advantages[j] = memory[idx1].advantages[idx2];
+                    returns[j] = memory[idx1].returns[idx2];
+                }
 
-            // Compute the surrogate loss and the value loss
-            auto net_output = net->forward(obs);
-            auto new_log_prob = neg_log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
-            auto ratio = (old_log_prob - new_log_prob).exp();
-            auto surr1 = ratio * advantages;
-            auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
-            auto actor_loss = -torch::min(surr1, surr2);
+                last_idx += mini_batch_size;
 
-            auto value_loss = torch::mse_loss(net_output.value, returns);
+                obs.requires_grad_(true);
+                returns.requires_grad_(true);
 
-            // calculate mean of surrogate_loss
-            actor_loss = actor_loss.mean();
+                // Compute the surrogate loss and the value loss
+                auto net_output = net->forward(obs);
+                auto new_log_prob = neg_log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
+                auto ratio = (old_log_prob - new_log_prob).exp();
+                auto surr1 = ratio * advantages;
+                auto surr2 = torch::clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * advantages;
+                auto actor_loss = -torch::min(surr1, surr2);
 
-            // calculate bound loss
-            auto mu_loss_high = torch::pow(torch::clamp_min(net_output.mu - 1.1, 0.0), 2);
-            auto mu_loss_low = torch::pow(torch::clamp_max(net_output.mu + 1.1, 0.0), 2);
-            auto b_loss = (mu_loss_low + mu_loss_high).sum(-1).mean();
+                auto value_loss = torch::mse_loss(net_output.value, returns);
 
-            // log the loss
-            logger.add_scalar("Loss/actor_loss", epoch * num_steps / mini_batch_size + i, actor_loss.item<float>());
-            logger.add_scalar("Loss/critic_loss", epoch * num_steps / mini_batch_size + i, value_loss.item<float>());
-            logger.add_scalar("Loss/bound_loss", epoch * num_steps / mini_batch_size + i, b_loss.item<float>());
+                // calculate mean of surrogate_loss
+                actor_loss = actor_loss.mean();
 
-            auto loss = actor_loss + value_loss_coef * value_loss + b_loss * bound_loss_coef;
+                // calculate bound loss
+                auto mu_loss_high = torch::pow(torch::clamp_min(net_output.mu - 1.1, 0.0), 2);
+                auto mu_loss_low = torch::pow(torch::clamp_max(net_output.mu + 1.1, 0.0), 2);
+                auto b_loss = (mu_loss_low + mu_loss_high).sum(-1).mean();
 
-            // Update the network
-            optimizer.zero_grad();
-            loss.backward();
+                // log the loss
+                logger.add_scalar("Loss/actor_loss", _steps, actor_loss.item<float>());
+                logger.add_scalar("Loss/critic_loss", _steps, value_loss.item<float>());
+                logger.add_scalar("Loss/bound_loss", _steps, b_loss.item<float>());
+                _steps++;
 
-            // truncate gradients and step
-            torch::nn::utils::clip_grad_norm_(net->parameters(), 1.0);
-            optimizer.step();
+                auto loss = actor_loss + value_loss_coef * value_loss + b_loss * bound_loss_coef;
 
-            // Print the loss
-            std::cout << "Epoch: " << epoch << " " << i + 1 << "/" << (int) (num_steps / mini_batch_size) << " Actor Loss: " << actor_loss.item<float>() << " Critic Loss: " << value_loss.item<float>() << std::endl;
-            logger.add_scalar("Info/epoch", epoch * num_steps / mini_batch_size + i, (float) epoch);
+                // Update the network
+                optimizer.zero_grad();
+                loss.backward();
 
-            if (i == 0 && epoch == 0) {
-                last_reward = env->last_reward_mean;
-            } else if (env->last_reward_mean > last_reward) {
-                cout << "Saving model with new best reward " << env->last_reward_mean << endl;
-                last_reward = env->last_reward_mean;
-                torch::save(net, "model.pt");
-            }
+                // truncate gradients and step
+                torch::nn::utils::clip_grad_norm_(net->parameters(), 1.0);
+                optimizer.step();
 
-            if (epoch % 100 == 0 && i == 0) {
-                cout << "Saving model with current reward: " << env->last_reward_mean << endl;
-                torch::save(net, "auto_model.pt");
+                last_actor_loss = actor_loss.item<float>();
+                last_critic_loss = value_loss.item<float>();
+
+                if (i == 0 && epoch == 0 && mini_e == 0) {
+                    last_reward = env->last_reward_mean;
+                } else if (env->last_reward_mean > last_reward) {
+                    cout << "Saving model with new best reward " << env->last_reward_mean << endl;
+                    last_reward = env->last_reward_mean;
+                    torch::save(net, "model.pt");
+                }
+
+                if (epoch % 100 == 0 && i == 0 && mini_e == 0) {
+                    cout << "Saving model with current reward: " << env->last_reward_mean << endl;
+                    torch::save(net, "auto_model.pt");
+                }
             }
         }
+
+        // Print the loss
+        std::cout << "Epoch: " << epoch << " Actor Loss: " << last_actor_loss << " Critic Loss: " << last_critic_loss << std::endl;
+        logger.add_scalar("Info/epoch", _steps, (float) epoch);
     }
 }
 
@@ -194,7 +209,7 @@ void Agent::PrepareBatch() {
     auto last_dones = memory[memory.size() - 1].done.unsqueeze(1);
     advantages = compute_GAE(reward, values, dones, last_values, last_dones);
 
-    auto returns = advantages + values;
+    auto returns = advantages + values;  // compute_rewards_to_go(reward, dones);
 
     // flatten returns, pass through value_mean_std and then reshape back
     SetTrain();
@@ -213,11 +228,21 @@ void Agent::PrepareBatch() {
     }
 }
 
+// rewards to go function
+Tensor Agent::compute_rewards_to_go(const Tensor &rewards, const Tensor &dones) {
+    Tensor rewards_to_go = torch::zeros({num_envs, horizon_length}, floatOptions);
+    Tensor rewards_to_go_step = torch::zeros({num_envs, 1}, floatOptions);
+    for (int step = horizon_length - 1; step >= 0; step--) {
+        rewards_to_go_step = rewards.narrow(1, step, 1) + (1 - dones.narrow(1, step, 1)) * rewards_to_go_step;
+        rewards_to_go.narrow(1, step, 1) = rewards_to_go_step;
+    }
+    return rewards_to_go;
+}
+
 
 // GAE
-Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor& last_dones) const {
+Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor &last_dones) const {
     Tensor advantages = torch::zeros({num_envs, horizon_length}, floatOptions);
-    Tensor delta = torch::zeros({num_envs, 1}, floatOptions);
     Tensor last_gae = torch::zeros({num_envs, 1}, floatOptions);
     Tensor nextvalues = torch::zeros({num_envs}, floatOptions);
     Tensor nextnonterminal = torch::zeros({num_envs}, floatOptions);
@@ -231,7 +256,7 @@ Tensor Agent::compute_GAE(const Tensor &rewards, const Tensor &values, const Ten
             nextnonterminal = 1 - dones.narrow(1, step + 1, 1);
         }
 
-        delta = rewards.narrow(1, step, 1) + gamma * nextvalues * nextnonterminal - values.narrow(1, step, 1);
+        auto delta = rewards.narrow(1, step, 1) + gamma * nextvalues * nextnonterminal - values.narrow(1, step, 1);
         advantages.narrow(1, step, 1) = delta + gamma * tau * nextnonterminal * last_gae;
         last_gae = advantages.narrow(1, step, 1);
     }

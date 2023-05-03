@@ -251,7 +251,16 @@ Tensor Environment::Reset() {
 
 
 Tensor Environment::GetObservation() {
-    return torch::cat({ballPosition, ballRotation, angle}, -1);
+    // normalize obs before returning
+    auto nBallPosition = ballPosition.clone();
+    auto nAngle = angle.clone();
+
+    nBallPosition = nBallPosition / 15.0f;
+    nBallPosition = nBallPosition / 5.0f;
+    nBallPosition = nBallPosition / 10.0f;
+    nAngle = nAngle / PxPi;
+
+    return torch::cat({nBallPosition, nAngle}, -1);
 }
 
 

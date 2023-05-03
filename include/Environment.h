@@ -68,7 +68,7 @@ public:
     float bonusAchievedReward = 10.0f;
     int num_envs = 1;
 
-    int observation_size = 8;
+    int observation_size = 4;
     int action_size = 2;
 
     bool toRender = true;

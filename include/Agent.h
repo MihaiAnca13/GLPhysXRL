@@ -35,6 +35,7 @@ typedef struct {
     int num_epochs;
     int horizon_length;
     int mini_batch_size;
+    int mini_epochs;
     float learning_rate;
     float clip_param;
     float value_loss_coef;
@@ -51,6 +52,7 @@ public:
     int num_epochs = 10;
     int horizon_length = 16;
     int mini_batch_size = 2;
+    int mini_epochs = 8;
     float learning_rate = 1e-3;
     float clip_param = 0.2;
     float value_loss_coef = 0.5;
@@ -71,6 +73,7 @@ public:
     DeviceType device = torch::kCUDA;
 
     TensorOptions floatOptions = torch::TensorOptions().dtype(torch::kFloat32).device(device).layout(torch::kStrided).requires_grad(false);
+    TensorOptions longOptions = torch::TensorOptions().dtype(torch::kLong).device(device).layout(torch::kStrided).requires_grad(false);
     TensorOptions boolOptions = torch::TensorOptions().dtype(torch::kBool).device(device).layout(torch::kStrided).requires_grad(false);
 
     RunningMeanStd value_mean_std = RunningMeanStd(1, 1e-5, false, false);
@@ -80,7 +83,7 @@ public:
     Network net;
     optim::AdamW optimizer;
 
-    Environment* env;
+    Environment *env;
     int num_envs = 1;
 
     void Train();
@@ -88,18 +91,24 @@ public:
     Tensor get_value(Tensor observation);
 
     void SetTrain();
+
     void SetEval();
 
     // GAE function for calculating the advantage
-    [[nodiscard]] Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor& last_values, const Tensor& last_dones) const;
+    Tensor compute_GAE(const Tensor &returns, const Tensor &values, const Tensor &dones, const Tensor &last_values, const Tensor &last_dones) const;
+
+    // rewards to go function
+    Tensor compute_rewards_to_go(const Tensor &rewards, const Tensor &dones);
 
     static Tensor neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor &sigma);
 
     int PlayOne();
+
     void PrepareBatch();
 
 private:
     Tensor _obs;
+    std::uint32_t _steps = 0;
 };
 
 #endif //C_ML_AGENT_H

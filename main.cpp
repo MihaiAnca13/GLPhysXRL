@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cuda_runtime.h>
 #include <filesystem>
+#include <time.h>
 
 
 using std::cout, std::endl;
@@ -19,7 +20,10 @@ int main() {
 
     cudaSetDevice(0);
 
-    srand(time(NULL));
+    srand(time(nullptr));
+    int seed = rand() % 100000;
+    srand(seed);
+    torch::manual_seed(seed);
 
     EnvConfig envConfig{
             .width = 800,
@@ -37,11 +41,12 @@ int main() {
 
     AgentConfig agentConfig{
             .num_epochs = 1000,
-            .horizon_length = 32,
-            .mini_batch_size = 2048,
+            .horizon_length = 16,
+            .mini_batch_size = 512,
+            .mini_epochs = 8,
             .learning_rate = 1e-4,
             .clip_param = 0.2,
-            .value_loss_coef = 2.0,
+            .value_loss_coef = 0.5,
             .bound_loss_coef = 0.0001,
             .gamma = 0.99,
             .tau = 0.95,
