@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cuda_runtime.h>
 #include <filesystem>
-#include <time.h>
+#include <ctime>
 
 
 using std::cout, std::endl;
@@ -28,14 +28,14 @@ int main() {
     EnvConfig envConfig{
             .width = 800,
             .height = 600,
-            .bounds = 100.0f,
+            .bounds = 50.0f,
             .ballDensity = 1.0f,
             .numSubsteps = 5,
-            .manualControl = false,
-            .headless = true,
+            .manualControl = true,
+            .headless = false,
             .maxSteps = 256,  // 1024
-            .threshold = 0.03f,
-            .bonusAchievedReward = 10.0f,
+            .threshold = 0.1f,
+            .bonusAchievedReward = 1.0f,
             .num_envs = 256,
     };
 
@@ -65,9 +65,9 @@ int main() {
 //    while (!glfwWindowShouldClose(environment.window)) {
 //        auto stepRes = environment.Step(action, &agent.logger);
 //
-////        cout << "reward: " << stepRes.reward << endl;
+//        cout << "reward: " << stepRes.reward[0].item<float>() << endl;
 ////        auto obs = stepRes.observation;
-////        cout << "ball pos: " << obs[0][0] << ", " << obs[0][1] << ", " << obs[0][2] << endl;
+////        cout << "ball pos: " << obs[0][0].item<float>() << ", " << obs[0][1].item<float>() << ", " << obs[0][2].item<float>() << endl;
 //
 //        if (stepRes.done[0].item<bool>()) {
 //            environment.Reset();

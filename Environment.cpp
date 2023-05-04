@@ -64,7 +64,7 @@ Environment::Environment(EnvConfig config) {
 
 void Environment::Init() {
     // assert headless is true if manualControl is true, but allow for both to be false
-    assert(!manualControl || headless);
+    assert(!(manualControl && headless));
 
     // PhysX simulation
     foundation = PxCreateFoundation(PX_PHYSICS_VERSION, mallocator, merrorCallback);
@@ -260,7 +260,7 @@ Tensor Environment::GetObservation() {
     nBallPosition = nBallPosition / 10.0f;
     nAngle = nAngle / PxPi;
 
-    return torch::cat({nBallPosition, nAngle}, -1);
+    return torch::cat({ballPosition, nAngle}, -1);
 }
 
 
@@ -490,7 +490,7 @@ void Environment::CleanUp() {
 Tensor Environment::ComputeReward() {
     // calculate the reward as the euclidean distance between the ball and the goal. the reward is higher when the ball is closer to the goal
     auto distance = torch::sqrt((ballPosition - goalPosition.expand({num_envs, 3})).pow(2).sum(-1));
-    auto reward = -distance / 25.0f;
+    auto reward = -distance / 21.0f;
 
     // if within threshold of target, add bonus reward
     auto bonus = torch::zeros({num_envs}, floatOptions);

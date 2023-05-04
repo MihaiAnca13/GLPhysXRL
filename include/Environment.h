@@ -64,8 +64,8 @@ public:
     bool manualControl = false;
     bool headless = false;
     int maxSteps = 100;
-    float threshold = 0.03f;
-    float bonusAchievedReward = 10.0f;
+    float threshold = 0.1f;
+    float bonusAchievedReward = 1.0f;
     int num_envs = 1;
 
     int observation_size = 4;
@@ -76,10 +76,10 @@ public:
 
     int _step = 0;
 
-    Tensor goalPosition = torch::tensor({{-6.61703f, 1.31621f, -1.71782f}}, torch::TensorOptions().dtype(torch::kFloat32).device(kCUDA));
+    Tensor goalPosition = torch::tensor({{-9.9f, 0.35712f, 1.6f}}, torch::TensorOptions().dtype(torch::kFloat32).device(kCUDA)); // -6.61703f, 1.31621f, -1.71782f
 
     glm::vec3 glmBallP{0.0f, 0.0f, 0.0f};
-    glm::vec3 initialBallPos = glm::vec3(13.0f, 0.3f, 7.8f);
+    glm::vec3 initialBallPos = glm::vec3(9.6f, 0.3f, 0.0f);  //glm::vec3(13.0f, 0.3f, 7.8f);
 
     Tensor ballRotation;
     Tensor ballPosition;
