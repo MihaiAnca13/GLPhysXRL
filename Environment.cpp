@@ -328,7 +328,7 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
     _step++;
     bool done = false;
 
-    if (_step >= maxSteps) {
+    if (_step >= maxSteps && logger != nullptr) {
         logger->add_scalar("Env/mean_reward", _episode, total_reward.mean().item<float>());
         _episode++;
         last_reward_mean = total_reward.mean().item<float>();

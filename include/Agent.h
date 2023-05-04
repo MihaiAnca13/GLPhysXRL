@@ -62,6 +62,8 @@ public:
     float tau = 0.95;
     float reward_multiplier = 0.01;
 
+    std::string run_path;
+
     float min_lr = 1e-6;
     float max_lr = 1e-2;
     float kl_threshold = 0.008;
@@ -73,7 +75,7 @@ public:
     int action_size = 2;
 
     TensorBoardLoggerOptions options{1000000, 5, false};
-    TensorBoardLogger logger = TensorBoardLogger("../runs/run_name/summaries/events.out.tfevents.mihai-desktop", options);
+    TensorBoardLogger logger;
 
     Transition memory;
     DeviceType device = torch::kCUDA;
@@ -84,7 +86,7 @@ public:
 
     RunningMeanStd value_mean_std = RunningMeanStd(1, 1e-5, false, false);
 
-    Agent(AgentConfig config, Environment *env);
+    Agent(AgentConfig config, Environment *env, const std::string &run_path);
 
     Network net;
     optim::AdamW optimizer;
@@ -93,6 +95,8 @@ public:
     int num_envs = 1;
 
     void Train();
+
+    void Test(const std::string& path);
 
     Tensor get_value(Tensor observation);
 

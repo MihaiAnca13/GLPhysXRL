@@ -10,8 +10,10 @@ void sleep(int seconds) {
 }
 
 
-Agent::Agent(AgentConfig config, Environment *environment) : net(Network(environment->observation_size, environment->action_size)),
-                                                             optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)) {
+Agent::Agent(AgentConfig config, Environment *environment, const std::string& run_path) : net(Network(environment->observation_size, environment->action_size)),
+                                                             optimizer(net->parameters(), torch::optim::AdamWOptions(learning_rate)),
+                                                             logger(TensorBoardLogger(run_path + "summaries/events.out.tfevents.c_ml", options)),
+                                                             run_path(run_path) {
     //loading the config
     num_epochs = config.num_epochs;
     horizon_length = config.horizon_length;
@@ -138,12 +140,14 @@ void Agent::Train() {
                 } else if (env->last_reward_mean > last_reward) {
                     cout << "Saving model with new best reward " << env->last_reward_mean << endl;
                     last_reward = env->last_reward_mean;
-                    torch::save(net, "model.pt");
+                    torch::save(net, run_path + "weights/model.pt");
+                    torch::save(value_mean_std, run_path + "weights/value_mean_std.pt");
                 }
 
                 if (epoch % 100 == 0 && i == 0 && mini_e == 0) {
                     cout << "Saving model with current reward: " << env->last_reward_mean << endl;
-                    torch::save(net, "auto_model.pt");
+                    torch::save(net, run_path + "weights/auto_model.pt");
+                    torch::save(value_mean_std, run_path + "weights/auto_value_mean_std.pt");
                 }
             }
         }
@@ -282,4 +286,31 @@ double Agent::update_lr(const double& kl) {
     }
 
     return learning_rate;
+}
+
+
+void Agent::Test(const std::string& path) {
+    torch::load(net, path);
+    torch::load(value_mean_std, path.substr(0, path.size() - 8) + "value_mean_std.pt");
+
+    SetEval();
+    _obs = env->Reset();
+
+    while (true) {
+        auto net_output = net->forward(_obs);
+        // clamp action between -1 and 1
+        Tensor action = torch::clamp(net_output.mu, -1.0, 1.0);
+
+        // clamping takes place in the environment
+        auto envStep = env->Step(action, &logger);
+
+        _obs = envStep.observation;
+        if (envStep.done[0].item<float>() == 1.0f) {
+            _obs = env->Reset();
+            break;
+        }
+    }
+
+    cout << "Mean reward: " << env->last_reward_mean << endl;
+
 }
