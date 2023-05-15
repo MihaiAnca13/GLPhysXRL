@@ -39,6 +39,7 @@ void test(std::string load_path) {
             .threshold = 0.1f,
             .bonusAchievedReward = 1.0f,
             .num_envs = 12,
+            .actionPenalty = 0.001f,
     };
 
     AgentConfig agentConfig{

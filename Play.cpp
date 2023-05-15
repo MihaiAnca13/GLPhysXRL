@@ -26,7 +26,7 @@ void play() {
     Environment environment(envConfig);
     environment.Reset();
 
-    auto action = torch::zeros({envConfig.num_envs, 2}, torch::TensorOptions().dtype(torch::kFloat32));
+    auto action = torch::zeros({envConfig.num_envs, 2}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA));
 
     while (!glfwWindowShouldClose(environment.window)) {
         auto stepRes = environment.Step(action, nullptr);

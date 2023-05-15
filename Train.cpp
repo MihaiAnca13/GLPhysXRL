@@ -11,6 +11,8 @@ using std::cout, std::endl;
 
 std::string handle_path(std::string path);
 
+void save_config(const std::string &run_path, AgentConfig agentConfig, const int seed);
+
 
 void train(std::string run_path) {
     run_path = handle_path(run_path);
@@ -19,6 +21,7 @@ void train(std::string run_path) {
 
     srand(time(nullptr));
     int seed = rand() % 100000;
+    seed = 71687;
 
     cout << "Setting seed to " << seed << endl;
 
@@ -37,21 +40,24 @@ void train(std::string run_path) {
             .threshold = 0.1f,
             .bonusAchievedReward = 1.0f,
             .num_envs = 256,
+            .actionPenalty = 0.001f,
     };
 
     AgentConfig agentConfig{
-            .num_epochs = 1000,
+            .num_epochs = 200,
             .horizon_length = 256,
             .mini_batch_size = 8192,
-            .mini_epochs = 8,
+            .mini_epochs = 16,
             .learning_rate = 1e-4,
             .clip_param = 0.2,
-            .value_loss_coef = 0.5,
+            .value_loss_coef = 0.25,
             .bound_loss_coef = 0.0001,
-            .gamma = 0.99,
+            .gamma = 0.9,
             .tau = 0.95,
             .reward_multiplier = 1.0,
     };
+
+    save_config(run_path, agentConfig, seed);
 
     Environment environment(envConfig);
     environment.Reset();
@@ -88,4 +94,23 @@ std::string handle_path(std::string path) {
     std::filesystem::create_directory(path + "weights");
 
     return path;
+}
+
+
+void save_config(const std::string &run_path, AgentConfig agentConfig, const int seed) {
+    // save agent config to a file
+    std::ofstream agent_config_file(run_path + "agent_config.txt");
+    agent_config_file << "seed: " << seed << std::endl;
+    agent_config_file << "num_epochs: " << agentConfig.num_epochs << std::endl;
+    agent_config_file << "horizon_length: " << agentConfig.horizon_length << std::endl;
+    agent_config_file << "mini_batch_size: " << agentConfig.mini_batch_size << std::endl;
+    agent_config_file << "mini_epochs: " << agentConfig.mini_epochs << std::endl;
+    agent_config_file << "learning_rate: " << agentConfig.learning_rate << std::endl;
+    agent_config_file << "clip_param: " << agentConfig.clip_param << std::endl;
+    agent_config_file << "value_loss_coef: " << agentConfig.value_loss_coef << std::endl;
+    agent_config_file << "bound_loss_coef: " << agentConfig.bound_loss_coef << std::endl;
+    agent_config_file << "gamma: " << agentConfig.gamma << std::endl;
+    agent_config_file << "tau: " << agentConfig.tau << std::endl;
+    agent_config_file << "reward_multiplier: " << agentConfig.reward_multiplier << std::endl;
+    agent_config_file.close();
 }

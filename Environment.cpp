@@ -50,6 +50,7 @@ Environment::Environment(EnvConfig config) {
     threshold = config.threshold;
     bonusAchievedReward = config.bonusAchievedReward;
     num_envs = config.num_envs;
+    actionPenalty = config.actionPenalty;
 
     // initialize the ball position, rotation and angle
     ballPosition = torch::zeros({num_envs, 3}, floatOptions);
@@ -240,7 +241,12 @@ Tensor Environment::Reset() {
     for (int i = 0; i < num_envs; i++) {
         balls[i]->setLinearVelocity(PxVec3(0.0f, 0.0f, 0.0f));
         balls[i]->setAngularVelocity(PxVec3(0.0f, 0.0f, 0.0f));
-        balls[i]->setGlobalPose(PxTransform(PxVec3(initialBallPos.x, initialBallPos.y, initialBallPos.z), PxQuat(PxIdentity)));
+
+        // generate a random number between -1 and 1
+        float random = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        random = random * 2.0f - 1.0f;
+
+        balls[i]->setGlobalPose(PxTransform(PxVec3(initialBallPos.x + random * 0.1f, initialBallPos.y, initialBallPos.z + random * 0.1f), PxQuat(PxIdentity)));
         angle[i] = 0.0f;
     }
     _step = 0;
@@ -322,7 +328,7 @@ StepResult Environment::Step(const Tensor &action, TensorBoardLogger *logger) {
         }
     }
 
-    auto reward = ComputeReward();
+    auto reward = ComputeReward(action);
     total_reward += reward;
 
     _step++;
@@ -487,7 +493,7 @@ void Environment::CleanUp() {
 }
 
 
-Tensor Environment::ComputeReward() {
+Tensor Environment::ComputeReward(const Tensor& action) {
     // calculate the reward as the euclidean distance between the ball and the goal. the reward is higher when the ball is closer to the goal
     auto distance = torch::sqrt((ballPosition - goalPosition.expand({num_envs, 3})).pow(2).sum(-1));
     auto reward = -distance / 21.0f;
@@ -497,6 +503,11 @@ Tensor Environment::ComputeReward() {
     auto mask = distance < threshold;
     bonus.masked_fill_(mask, bonusAchievedReward);
     reward += bonus;
+
+    // add penalty for using big actions (i.e. being inefficient)
+    auto actionMagnitude = torch::sqrt(action.pow(2).sum(-1));
+    reward -= actionMagnitude * actionPenalty;
+
 
     return reward;
 }

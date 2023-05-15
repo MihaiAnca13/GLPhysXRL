@@ -170,7 +170,7 @@ int Agent::PlayOne() {
         // convert from mu and sigma to action
         Tensor action = at::normal(net_output.mu, torch::ones_like(net_output.mu));
         // clamp action between -1 and 1
-        action = torch::clamp(action, -1.0, 1.0);
+//        action = torch::clamp(action, -1.0, 1.0);
 
         Tensor old_log_prob = neg_log_prob(action, net_output.mu, torch::ones_like(net_output.mu));
 
@@ -265,9 +265,9 @@ Tensor Agent::neg_log_prob(const Tensor &action, const Tensor &mu, const Tensor 
 
 
 Tensor Agent::policy_kl(const Tensor &mu, const Tensor &sigma, const Tensor &mu_old, const Tensor &sigma_old) {
-    auto sigma_ratio = (sigma / sigma_old).log();
-    auto mu_diff = (mu_old - mu).pow(2) / (2 * sigma_old.pow(2));
-    auto kl = (sigma_ratio + mu_diff + 0.5 * log(2 * M_PI)).sum(1, true);
+    auto sigma_ratio = (sigma_old / sigma).log();
+    auto mu_diff = (sigma.pow(2) + (mu_old - mu).pow(2)) / (2 * sigma_old.pow(2));
+    auto kl = (sigma_ratio + mu_diff - 0.5).sum(1);
     return kl.mean();
 }
 

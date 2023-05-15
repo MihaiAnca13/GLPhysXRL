@@ -41,6 +41,7 @@ typedef struct {
     float threshold;
     float bonusAchievedReward;
     int num_envs;
+    float actionPenalty;
 } EnvConfig;
 
 
@@ -67,6 +68,7 @@ public:
     float threshold = 0.1f;
     float bonusAchievedReward = 1.0f;
     int num_envs = 1;
+    float actionPenalty = 0.001;
 
     int observation_size = 4;
     int action_size = 2;
@@ -136,7 +138,7 @@ public:
 
     Tensor GetObservation();
 
-    Tensor ComputeReward();
+    Tensor ComputeReward(const Tensor& action);
 
     void Render();
 
