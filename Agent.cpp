@@ -208,7 +208,7 @@ void Agent::PrepareBatch() {
 
     auto returns = memory.advantages + memory.value;
 
-    // flatten returns, pass through value_mean_std and then reshape back
+    // flatten returns, pass through value_mean_std
     SetTrain();
     returns = returns.flatten(0, 1);
     returns = value_mean_std->forward(returns);
