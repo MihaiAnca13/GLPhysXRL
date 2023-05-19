@@ -15,7 +15,8 @@ https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorith
 https://github.com/RustingSword/tensorboard_logger
 
 ## Setup
-Place libtorch and PhysX under the libs folder.  
+Install vcpkg.  
+Place libtorch and PhysX under the libs folder.   
 Install OpenGL, GLAD and glfw3.  
 Add the following to CMake options `-DCMAKE_TOOLCHAIN_FILE=/home/mihai/CLionProjects/vcpkg/scripts/buildsystems/vcpkg.cmake`  
 
