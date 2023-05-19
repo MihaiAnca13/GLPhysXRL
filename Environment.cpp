@@ -261,12 +261,12 @@ Tensor Environment::GetObservation() {
     auto nBallPosition = ballPosition.clone();
     auto nAngle = angle.clone();
 
-    nBallPosition = nBallPosition / 15.0f;
-    nBallPosition = nBallPosition / 5.0f;
-    nBallPosition = nBallPosition / 10.0f;
+    nBallPosition.slice(1, 0, 1) = nBallPosition.slice(1, 0, 1) / 15.0f;
+    nBallPosition.slice(1, 1, 2) = nBallPosition.slice(1, 1, 2) / 5.0f;
+    nBallPosition.slice(1, 2, 3) = nBallPosition.slice(1, 2, 3) / 10.0f;
     nAngle = nAngle / PxPi;
 
-    return torch::cat({ballPosition, nAngle}, -1);
+    return torch::cat({nBallPosition, nAngle}, -1);
 }
 
 
